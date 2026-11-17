@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, Copy, Check } from "lucide-react";
+import { ArrowLeft, Copy, Check, Link2 } from "lucide-react";
 import { useGame } from "@/context/GameContext";
 import { AppBar } from "@/components/AppBar";
 import { Button } from "@/components/ui/Button";
@@ -13,6 +13,7 @@ import { copyText } from "@/lib/clipboard";
 export function Room() {
   const { room, playerId, connection, startGame, leaveRoom, notice } = useGame();
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   if (!room) return null;
 
@@ -27,6 +28,15 @@ export function Room() {
     if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
+    }
+  }
+
+  async function handleCopyLink() {
+    const url = `${window.location.origin}/room/${roomCode}`;
+    const ok = await copyText(url);
+    if (ok) {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 1800);
     }
   }
 
@@ -82,9 +92,26 @@ export function Room() {
                     <Copy size={15} strokeWidth={1.5} aria-hidden="true" />
                   )}
                 </button>
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  aria-label="Salin tautan undangan"
+                  title="Salin tautan undangan"
+                  className="grid h-8 w-8 place-items-center rounded-control border border-line text-fg-muted transition-colors duration-150 hover:border-ink-700 hover:text-fg focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+                >
+                  {linkCopied ? (
+                    <Check size={15} strokeWidth={1.5} aria-hidden="true" />
+                  ) : (
+                    <Link2 size={15} strokeWidth={1.5} aria-hidden="true" />
+                  )}
+                </button>
               </div>
               <p className="mt-2 text-xs text-fg-faint">
-                {copied ? "Kode tersalin" : "Bagikan kode ini ke lawanmu"}
+                {linkCopied
+                  ? "Tautan tersalin — kirim ke lawanmu"
+                  : copied
+                    ? "Kode tersalin"
+                    : "Bagikan kode atau tautan ke lawanmu"}
               </p>
             </div>
             <p className="text-xs text-fg-muted sm:text-right">

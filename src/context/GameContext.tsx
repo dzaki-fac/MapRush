@@ -162,6 +162,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
     socketRef.current = socket;
 
     socket.onopen = () => {
+      // Socket lama (StrictMode / reconnect) tidak boleh menimpa status yang baru.
+      if (socketRef.current !== socket) return;
       setConnection("online");
       flushPending();
     };
@@ -169,8 +171,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
     socket.onmessage = handleMessage;
 
     socket.onclose = () => {
+      if (socketRef.current !== socket) return;
       setConnection("offline");
-      if (socketRef.current === socket) socketRef.current = null;
+      socketRef.current = null;
       if (!sessionRef.current || reconnectTimerRef.current) return;
       reconnectTimerRef.current = setTimeout(() => {
         reconnectTimerRef.current = null;

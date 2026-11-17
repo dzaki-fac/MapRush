@@ -136,10 +136,17 @@ npm run dev
 - WebSocket: ws://localhost:8080 (terset otomatis saat port 3000)
 
 Buka **dua tab/ browser** (atau dua jendela incognito):
-1. Tab A: isi nickname → **Buat Room Baru** → catat kode room.
-2. Tab B: isi nickname → **Gabung Room** → masukkan kode.
+1. Tab A: isi nickname → **Buat Room** → dapat kode room.
+2. Tab B: buka langsung `http://localhost:3000/room/<KODE>` → cukup isi nickname → **Gabung room**.
 3. Host (Tab A) tekan **Mulai Game**.
 4. Coba ketik `indonesia` di A, lalu `INDONESIA` di B (harus muncul "Negara sudah dipakai").
+
+### Undang lewat link
+
+Di ruang tunggu ada dua tombol: salin **kode room** dan salin **tautan undangan**
+(`https://<domain>/room/<KODE>`). Siapa pun yang membuka tautan itu akan disambar
+halaman "Bergabung ke room" dan hanya perlu mengisi nickname. Kode room dari
+URL tetap bisa dipakai lewat tab **Gabung room** di lobby.
 
 ### Script lain
 
