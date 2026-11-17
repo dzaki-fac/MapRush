@@ -35,12 +35,14 @@ MapRush/
 ├── public/
 │   └── geographies/
 │       └── countries-110m.json # peta dunia (digenerate otomatis saat npm install)
-├── server/                     # WEBSOCKET SERVER (source of truth)
-│   ├── index.ts                # wiring koneksi, routing pesan, broadcast, timer, disconnect
+├── server/                     # LOGIC SERVER (source of truth)
+│   ├── index.ts                # entry WS server mandiri untuk development (:8080)
+│   ├── gameServer.ts           # routing pesan, broadcast, timer, disconnect (dipakai dua transport)
 │   ├── gameStore.ts            # abstraksi RoomStore + implementasi InMemoryRoomStore
 │   └── gameEngine.ts           # logika murni: create/join/start/guess/finish/rematch
 ├── src/
 │   ├── app/
+│   │   ├── api/ws/route.ts     # WebSocket native Vercel (/api/ws via upgradeWebSocket)
 │   │   ├── layout.tsx          # provider global
 │   │   ├── page.tsx            # halaman lobby
 │   │   ├── globals.css         # Tailwind + styling peta
@@ -83,11 +85,14 @@ MapRush/
 ## 3. Arsitektur real-time
 
 ```
-Browser A ─┐
-           ├── WebSocket ──> WS Server (in-memory RoomStore = source of truth)
-Browser B ─┘                      │
-                                  ├── broadcast STATE ke semua pemain di room
-                                  └── NOTICE khusus ke pemain yang mengirim jawaban
+Browser A ─┐                       ┌─ development: server/index.ts (:8080)
+           ├── WebSocket ────────> ┤
+Browser B ─┘                       └─ Vercel: /api/ws (upgradeWebSocket)
+                                          │
+                              GameServer + in-memory RoomStore
+                                          │
+                              broadcast STATE ke semua pemain di room
+                              NOTICE khusus ke pemain yang mengirim jawaban
 ```
 
 State yang disimpan server per room (`RoomState`): `code`, `ownerId`, `players`, `status`, `usedCountries`, `remainingMs`, `endsAt`, `durationMs`, `result`, `createdAt`.
@@ -153,66 +158,47 @@ npx tsx scripts/check-engine.mjs
 
 ---
 
-## 6. Deploy ke Vercel
+## 6. Deploy ke Vercel (satu tempat, tanpa server tambahan)
 
-### 6a. Frontend (Next.js) → Vercel
+Vercel Functions sekarang mendukung WebSocket native (GA, semua plan, butuh **Fluid compute** — aktif-default untuk project dibuat setelah 23 April 2025). Jadi cukup deploy Next.js saja.
 
-1. Push project ke GitHub/GitLab/Bitbucket.
-2. Di Vercel: **Add New → Project**, import repo. Framework terdeteksi sebagai **Next.js**.
-3. Tambahkan environment variable:
-   - `NEXT_PUBLIC_WS_URL` = `wss://<host-websocket-server-anda>` (tanpa trailing slash).
-4. Deploy. `vercel.json` sudah disiapkan (framework = nextjs). Script `postinstall` otomatis menyalin file peta saat build.
+### 6a. Langkah deploy
 
-### 6b. WebSocket server → host dengan proses panjang
+1. Push repo ke GitHub.
+2. Di Vercel: **Add New → Project**, import `dzaki-fac/MapRush`. Framework terdeteksi **Next.js**.
+3. **Tidak perlu** environment variable. Koneksi dibuat otomatis ke `wss://<domain-anda>/api/ws` pada origin yang sama.
+4. Deploy. Script `postinstall` otomatis menyalin peta ke `public/geographies`.
+5. Cek: status di kanan atas harus **Terhubung**. Coba buka dua tab, buat room, lalu gabung.
 
-WS server **tidak bisa** dijalankan sebagai Vercel Function (lihat bagian keterbatasan). Deploy ke platform yang mendukung proses Node.js terus-menerus, misalnya:
+### 6b. Cara kerjanya
 
-**Railway** (contoh):
-```bash
-# buat service baru dari repo yang sama, lalu:
-# Build command: npm install
-# Start command: npm run server
-# Tambahkan env PORT (default 8080) dan expose port tersebut.
-```
+- `src/app/api/ws/route.ts` memakai `upgradeWebSocket()` dari `@vercel/functions` untuk menerima koneksi di `/api/ws`.
+- Handler-nya memakai class `GameServer` yang **sama** dengan WS server mandiri untuk development — jadi tidak ada duplikasi logika game.
+- Saat development lokal (`npm run dev`), client tetap tersambung ke `ws://localhost:8080` lewat server mandiri (`server/index.ts`). `upgradeWebSocket()` hanya jalan di platform Vercel.
+- `NEXT_PUBLIC_WS_URL` opsional, berguna kalau nanti ingin mengarahkan ke WS server eksternal. Jika diisi, **harus `wss://`** dan perlu redeploy (nilai `NEXT_PUBLIC_*` di-inline saat build).
 
-**Render / Fly.io** juga bisa dengan start command `npm run server`. Pastikan port yang di-expose sesuai `PORT`, lalu isi `NEXT_PUBLIC_WS_URL` di Vercel dengan URL `wss://...`-nya.
+### 6c. Troubleshooting
 
-> Catatan: gunakan `wss://` (TLS) di produksi. Proxy seperti Railway/Render/Fly biasanya menghentikan TLS di edge dan meneruskan WS ke server.
-
-### 6c. Troubleshooting: "Terputus" / WebSocket gagal di Vercel
-
-Gejala: console browser menunjukkan `WebSocket connection to 'wss://<domain-vercel>.vercel.app/' failed`.
-
-**Penyebabnya:** `NEXT_PUBLIC_WS_URL` belum diisi. Tanpa env var itu, aplikasi jatuh ke domain Vercel sendiri — dan di sana tidak ada WebSocket server. Deploy frontend saja tidak cukup.
-
-**Langkah perbaikan:**
-
-1. Deploy dulu WS server-nya ke Railway/Render/Fly (start command `npm run server`) dan pastikan prosesnya hidup. Cek dengan `wscat -c wss://<host-ws-server>` atau buka URL-nya — harus ada koneksi, bukan 404.
-2. Di Vercel → **Project Settings → Environment Variables**, tambahkan:
-   - Key: `NEXT_PUBLIC_WS_URL`
-   - Value: `wss://<host-ws-server-anda>` — **harus `wss://`**, bukan `ws://` (browser memblokir `ws://` dari halaman HTTPS).
-   - Centang **Production** (dan Preview jika perlu).
-3. **Deploy ulang** (Redeploy). Variabel `NEXT_PUBLIC_*` di-inline saat build, jadi mengubah env var tanpa rebuild tidak berefek.
-4. Verifikasi: di halaman harus muncul status **Terhubung** di kanan atas. Jika masih gagal, periksa log WS server, firewall/port, dan apakah platform hosting menyuspensi service saat idle (free tier Railway/Render bisa sleep — bangunkan sebelum dipakai).
-
-Aplikasi sekarang menampilkan pesan konfigurasi yang jelas di lobby dan menonaktifkan tombol Create/Join saat koneksi belum siap, sehingga tidak ada lagi antrean pesan yang menggantung.
+| Gejala | Penyebab | Perbaikan |
+|---|---|---|
+| Status tetap **Menghubungkan** / **Terputus** | Function `/api/ws` error saat upgrade | Buka **Function Logs** di Vercel, cek stack trace |
+| `WebSocket handshake failed` | Fluid compute nonaktif (project lama) | Settings → Functions → aktifkan Fluid compute, lalu redeploy |
+| Koneksi putus sekitar 5 menit | Batas durasi Function | Normal — client sudah auto-reconnect; game hanya 90 detik |
+| Pemain tidak melihat pemain lain | Dua koneksi masuk ke **instance Function berbeda** | Lihat catatan state di bawah |
 
 ---
 
-## 7. Keterbatasan Vercel untuk multiplayer & rencana upgrade
+## 7. Keterbatasan & rencana upgrade
 
-**Kenapa WS server tidak di Vercel:**
-1. **Function bersifat stateless & ephemereal** — state `in-memory` tidak awet dan tiap request bisa masuk ke instance berbeda. Dua pemain bisa saja tidak bertemu di memori yang sama.
-2. **Tidak ada koneksi WebSocket native** pada Vercel Functions — tidak ada upgrade/long-lived connection; Function juga punya batas durasi eksekusi.
-3. Timer server (`setInterval`) butuh proses yang hidup terus — tidak mungkin di serverless.
+**State masih in-memory per instance.** Satu koneksi WebSocket di-pin ke satu instance Function. Fluid compute membolehkan satu instance menangani banyak koneksi, tetapi koneksi baru **tidak dijamin** masuk ke instance yang sama. Untuk traffic rendah (1 room, 2 pemain) ini biasanya aman, tapi bukan jaminan. Konsekuensinya:
+- Jika kedua pemain mendarat di instance berbeda, mereka tidak akan saling melihat.
+- Setelah redeploy, koneksi lama tetap di instance lama sampai ditutup.
 
-Itulah sebabnya arsitekturnya dipisah: **Next.js di Vercel (UI)** + **WS server sebagai proses mandiri (state + real-time)**. Untuk MVP ini sudah stabil dan murah.
-
-**Upgrade berikutnya (saat butuh scale):**
-- Ganti `InMemoryRoomStore` dengan `RedisRoomStore` yang mengimplementasikan interface `RoomStore` yang sama — client/server tidak perlu diubah.
-- Tambahkan **Redis Pub/Sub** agar beberapa instance WS server bisa saling broadcast (`room code` sebagai channel).
-- Tambahkan rate limiting per player, validasi origin/CORS, reconnect token yang aman, dan monitoring.
-- Alternatif fully-managed WebSocket: **PartyKit**, **Pusher**, **Ably**, atau **Cloudflare Durable Objects** — tidak perlu kelola WS server sendiri, tapi ada biaya/API key.
+**Solusi untuk scale ( Upgrade berikutnya):**
+- Ganti `InMemoryRoomStore` dengan Redis (Vercel Marketplace / Upstash) — interface `RoomStore` sudah disiapkan supaya perubahannya lokal.
+- Tambahkan **Redis Pub/Sub** dengan `roomCode` sebagai channel supaya broadcast menjangkau instance lain.
+- Pertimbangkan **WebSocket hibernation** / managed realtime (Pusher, Ably, PartyKit, Durable Objects) bila butuh koneksi lama dan multi-region yang deterministik.
+- Tambahkan rate limiting per pemain, validasi origin, reconnect token, dan monitoring.
 
 ---
 

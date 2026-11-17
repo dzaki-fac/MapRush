@@ -32,7 +32,7 @@ const rules = [
 ];
 
 export function Lobby() {
-  const { connection, socketConfigured, createRoom, joinRoom, notice } = useGame();
+  const { connection, createRoom, joinRoom, notice } = useGame();
   const [nickname, setNickname] = useState("");
   const [roomCode, setRoomCode] = useState("");
   const [tab, setTab] = useState<"create" | "join">("create");
@@ -130,30 +130,16 @@ export function Lobby() {
               ))}
             </div>
 
-            {(!socketConfigured || connection === "offline") && (
+            {connection === "offline" && (
               <div className="mt-5 border-l-2 border-l-signal-bad bg-ink-850 px-3 py-3">
                 <p className="text-sm font-medium text-fg">
-                  {!socketConfigured
-                    ? "WebSocket belum dikonfigurasi"
-                    : "Tidak dapat terhubung ke server game"}
+                  Tidak dapat terhubung ke server game
                 </p>
                 <p className="mt-1.5 text-xs leading-relaxed text-fg-muted">
-                  {!socketConfigured ? (
-                    <>
-                      Isi environment variable{" "}
-                      <code className="font-mono text-accent">NEXT_PUBLIC_WS_URL</code> di Vercel
-                      dengan alamat <code className="font-mono">wss://…</code> server WebSocket,
-                      lalu deploy ulang. Domain Vercel tidak menjalankan WebSocket server.
-                    </>
-                  ) : (
-                    <>
-                      Server di{" "}
-                      <code className="break-all font-mono text-accent">{getSocketUrl()}</code>{" "}
-                      tidak merespons. Pastikan server aktif dan alamatnya memakai{" "}
-                      <code className="font-mono">wss://</code>, bukan{" "}
-                      <code className="font-mono">ws://</code>.
-                    </>
-                  )}
+                  WebSocket di <code className="break-all font-mono text-accent">{getSocketUrl()}</code>{" "}
+                  belum merespons. Di Vercel, cek Function Logs untuk <code className="font-mono">/api/ws</code>{" "}
+                  dan pastikan Fluid compute aktif. Jika memakai server sendiri, pastikan servernya
+                  berjalan dan alamatnya <code className="font-mono">wss://</code>.
                 </p>
               </div>
             )}
@@ -179,7 +165,7 @@ export function Lobby() {
                   type="submit"
                   size="lg"
                   className="w-full"
-                  disabled={!nickname.trim() || !socketConfigured || connection === "offline"}
+                  disabled={!nickname.trim() || connection === "offline"}
                 >
                   Buat room
                 </Button>
@@ -211,10 +197,7 @@ export function Lobby() {
                   size="lg"
                   className="w-full"
                   disabled={
-                    !nickname.trim() ||
-                    !roomCode.trim() ||
-                    !socketConfigured ||
-                    connection === "offline"
+                    !nickname.trim() || !roomCode.trim() || connection === "offline"
                   }
                 >
                   Gabung room

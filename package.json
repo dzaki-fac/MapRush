@@ -16,6 +16,7 @@
     "postinstall": "node scripts/copy-geography.mjs"
   },
   "dependencies": {
+    "@vercel/functions": "^3.11.3",
     "lucide-react": "^1.74.0",
     "next": "16.4.6",
     "react": "19.3.1",
