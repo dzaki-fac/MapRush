@@ -71,13 +71,13 @@ export function Game() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-4 sm:px-6">
+    <main className="mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-4 sm:px-6 lg:h-dvh lg:min-h-0">
       <AppBar
         status={connection}
         aside={<span className="font-mono text-xs text-fg-faint">room {room.code}</span>}
       />
 
-      <div className="flex flex-1 flex-col py-4 sm:py-6">
+      <div className="flex min-h-0 flex-1 flex-col py-4 sm:py-6">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-line pb-4 sm:gap-3">
           <ScoreCard player={me} isMe />
           <div className="text-center">
@@ -96,13 +96,12 @@ export function Game() {
           </div>
         </div>
 
-        {notice && (
-          <div className="mt-4">
-            <NoticeBanner notice={notice} />
-          </div>
-        )}
+        {/* Slot tetap supaya peta tidak ikut bergeser saat notifikasi muncul/hilang. */}
+        <div className="mt-4 flex h-14 shrink-0 items-start">
+          {notice && <NoticeBanner notice={notice} />}
+        </div>
 
-        <div className="mt-4 grid flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="mt-4 grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
           <Panel className="flex min-h-0 flex-col overflow-hidden">
             <div className="flex h-11 shrink-0 items-center justify-between border-b border-line px-4">
               <p className="font-mono text-[11px] text-fg-faint">Peta dunia · Equal Earth</p>
@@ -123,8 +122,8 @@ export function Game() {
                 </span>
               </div>
             </div>
-            <div className="grid flex-1 place-items-center bg-ink-950/50 p-3">
-              <div className="w-full">
+            <div className="grid min-h-0 flex-1 place-items-center bg-ink-950/50 p-3">
+              <div className="flex h-full min-h-0 w-full items-center justify-center">
                 <WorldMapCanvas
                   usedCountries={room.usedCountries}
                   players={room.players}
@@ -134,7 +133,7 @@ export function Game() {
           </Panel>
 
           <aside className="flex min-h-0 flex-col gap-4">
-            <Panel className="p-5">
+            <Panel className="shrink-0 p-5">
               <form onSubmit={handleSubmit}>
                 <label className="field-label" htmlFor="guess">
                   Nama negara
