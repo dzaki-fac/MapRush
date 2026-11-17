@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  @apply bg-ink-950 font-sans text-fg antialiased;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+@layer components {
+  .panel {
+    @apply rounded-card border border-line bg-ink-900;
+  }
+
+  .field-label {
+    @apply mb-2 block text-xs font-medium text-fg-muted;
+  }
+
+  .field {
+    @apply w-full rounded-control border border-line bg-ink-950 px-3 py-2.5 text-sm text-fg
+      outline-none transition-colors duration-150 placeholder:text-fg-faint
+      hover:border-ink-700 focus:border-accent focus:ring-1 focus:ring-accent/40;
+  }
+}
+
+/* Peta: negara netral vs negara yang sudah diklaim diwarnai dari state server. */
+.country {
+  cursor: default;
+}
+.country-free:hover {
+  fill: #30414a;
+}
+
+@layer utilities {
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2b353c transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #2b353c;
+  border-radius: 999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

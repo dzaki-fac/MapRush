@@ -1,0 +1,40 @@
+{
+  "name": "maprush",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n WEB,WS -c cyan,magenta \"next dev\" \"npm:dev:server\"",
+    "dev:web": "next dev",
+    "dev:server": "tsx watch server/index.ts",
+    "build": "next build",
+    "start": "next start",
+    "server": "tsx server/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test:names": "tsx scripts/check-names.mjs",
+    "test:engine": "tsx scripts/check-engine.mjs",
+    "test:smoke": "node scripts/smoke-test.mjs",
+    "postinstall": "node scripts/copy-geography.mjs"
+  },
+  "dependencies": {
+    "lucide-react": "^1.74.0",
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-simple-maps": "^5.0.5",
+    "world-atlas": "^2.0.2",
+    "world-countries": "^5.0.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.11",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.2.0",
+    "@types/ws": "^8.5.12",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.0.1",
+    "postcss": "^8.5.22",
+    "tailwindcss": "^3.4.13",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3"
+  }
+}
