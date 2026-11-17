@@ -1,10 +1,20 @@
+/**
+ * URL WebSocket server.
+ *
+ * - Development: Next di :3000, WS server mandiri di :8080.
+ * - Produksi: WAJIB diisi NEXT_PUBLIC_WS_URL dengan alamat wss:// server WS.
+ *
+ * Mengembalikan "" jika tidak ada konfigurasi yang valid, supaya UI bisa
+ * menampilkan pesan yang jelas daripada menggantung di status "Menghubungkan".
+ */
 export function getSocketUrl(): string {
-  if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL;
+  const configured = process.env.NEXT_PUBLIC_WS_URL?.trim();
+  if (configured) return configured;
 
   if (typeof window === "undefined") return "ws://localhost:8080";
 
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  // Saat development_next berjalan di :3000, WebSocket server berdiri sendiri di :8080.
-  if (window.location.port === "3000") return "ws://localhost:8080";
-  return `${protocol}//${window.location.host}`;
+  const host = window.location.hostname;
+  if (host === "localhost" || host === "127.0.0.1") return "ws://localhost:8080";
+
+  return "";
 }

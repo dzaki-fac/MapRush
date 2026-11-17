@@ -10,6 +10,7 @@ import { NoticeBanner } from "@/components/NoticeBanner";
 import { MapRule } from "@/components/MapRule";
 import { WorldMapCanvas } from "@/components/WorldMapCanvas";
 import { GAME_DURATION_MS, PLAYER_COLORS } from "@/shared/constants";
+import { getSocketUrl } from "@/lib/socketUrl";
 
 const rules = [
   {
@@ -31,7 +32,7 @@ const rules = [
 ];
 
 export function Lobby() {
-  const { connection, createRoom, joinRoom, notice } = useGame();
+  const { connection, socketConfigured, createRoom, joinRoom, notice } = useGame();
   const [nickname, setNickname] = useState("");
   const [roomCode, setRoomCode] = useState("");
   const [tab, setTab] = useState<"create" | "join">("create");
@@ -129,6 +130,34 @@ export function Lobby() {
               ))}
             </div>
 
+            {(!socketConfigured || connection === "offline") && (
+              <div className="mt-5 border-l-2 border-l-signal-bad bg-ink-850 px-3 py-3">
+                <p className="text-sm font-medium text-fg">
+                  {!socketConfigured
+                    ? "WebSocket belum dikonfigurasi"
+                    : "Tidak dapat terhubung ke server game"}
+                </p>
+                <p className="mt-1.5 text-xs leading-relaxed text-fg-muted">
+                  {!socketConfigured ? (
+                    <>
+                      Isi environment variable{" "}
+                      <code className="font-mono text-accent">NEXT_PUBLIC_WS_URL</code> di Vercel
+                      dengan alamat <code className="font-mono">wss://…</code> server WebSocket,
+                      lalu deploy ulang. Domain Vercel tidak menjalankan WebSocket server.
+                    </>
+                  ) : (
+                    <>
+                      Server di{" "}
+                      <code className="break-all font-mono text-accent">{getSocketUrl()}</code>{" "}
+                      tidak merespons. Pastikan server aktif dan alamatnya memakai{" "}
+                      <code className="font-mono">wss://</code>, bukan{" "}
+                      <code className="font-mono">ws://</code>.
+                    </>
+                  )}
+                </p>
+              </div>
+            )}
+
             {notice && (
               <div className="mt-4">
                 <NoticeBanner notice={notice} />
@@ -146,7 +175,12 @@ export function Lobby() {
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                 />
-                <Button type="submit" size="lg" className="w-full" disabled={!nickname.trim()}>
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="w-full"
+                  disabled={!nickname.trim() || !socketConfigured || connection === "offline"}
+                >
                   Buat room
                 </Button>
                 <p className="text-xs text-fg-faint">Kamu menjadi host dan mendapat kode room.</p>
@@ -176,7 +210,12 @@ export function Lobby() {
                   type="submit"
                   size="lg"
                   className="w-full"
-                  disabled={!nickname.trim() || !roomCode.trim()}
+                  disabled={
+                    !nickname.trim() ||
+                    !roomCode.trim() ||
+                    !socketConfigured ||
+                    connection === "offline"
+                  }
                 >
                   Gabung room
                 </Button>

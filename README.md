@@ -179,6 +179,24 @@ WS server **tidak bisa** dijalankan sebagai Vercel Function (lihat bagian keterb
 
 > Catatan: gunakan `wss://` (TLS) di produksi. Proxy seperti Railway/Render/Fly biasanya menghentikan TLS di edge dan meneruskan WS ke server.
 
+### 6c. Troubleshooting: "Terputus" / WebSocket gagal di Vercel
+
+Gejala: console browser menunjukkan `WebSocket connection to 'wss://<domain-vercel>.vercel.app/' failed`.
+
+**Penyebabnya:** `NEXT_PUBLIC_WS_URL` belum diisi. Tanpa env var itu, aplikasi jatuh ke domain Vercel sendiri — dan di sana tidak ada WebSocket server. Deploy frontend saja tidak cukup.
+
+**Langkah perbaikan:**
+
+1. Deploy dulu WS server-nya ke Railway/Render/Fly (start command `npm run server`) dan pastikan prosesnya hidup. Cek dengan `wscat -c wss://<host-ws-server>` atau buka URL-nya — harus ada koneksi, bukan 404.
+2. Di Vercel → **Project Settings → Environment Variables**, tambahkan:
+   - Key: `NEXT_PUBLIC_WS_URL`
+   - Value: `wss://<host-ws-server-anda>` — **harus `wss://`**, bukan `ws://` (browser memblokir `ws://` dari halaman HTTPS).
+   - Centang **Production** (dan Preview jika perlu).
+3. **Deploy ulang** (Redeploy). Variabel `NEXT_PUBLIC_*` di-inline saat build, jadi mengubah env var tanpa rebuild tidak berefek.
+4. Verifikasi: di halaman harus muncul status **Terhubung** di kanan atas. Jika masih gagal, periksa log WS server, firewall/port, dan apakah platform hosting menyuspensi service saat idle (free tier Railway/Render bisa sleep — bangunkan sebelum dipakai).
+
+Aplikasi sekarang menampilkan pesan konfigurasi yang jelas di lobby dan menonaktifkan tombol Create/Join saat koneksi belum siap, sehingga tidak ada lagi antrean pesan yang menggantung.
+
 ---
 
 ## 7. Keterbatasan Vercel untuk multiplayer & rencana upgrade

@@ -30,6 +30,7 @@ export type ConnectionStatus = "connecting" | "online" | "offline";
 
 interface GameContextValue {
   connection: ConnectionStatus;
+  socketConfigured: boolean;
   room: RoomState | null;
   playerId: string | null;
   notice: Notice | null;
@@ -55,6 +56,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const reconnectingRef = useRef(false);
 
   const [connection, setConnection] = useState<ConnectionStatus>("connecting");
+  const [socketConfigured, setSocketConfigured] = useState(true);
   const [room, setRoom] = useState<RoomState | null>(null);
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [notice, setNoticeState] = useState<Notice | null>(null);
@@ -151,8 +153,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const url = getSocketUrl();
+    if (!url) {
+      // Production tanpa NEXT_PUBLIC_WS_URL: jangan buat koneksi ke domain Vercel.
+      setSocketConfigured(false);
+      setConnection("offline");
+      return;
+    }
+
+    setSocketConfigured(true);
     setConnection("connecting");
-    const socket = new WebSocket(getSocketUrl());
+    const socket = new WebSocket(url);
     socketRef.current = socket;
 
     socket.onopen = () => {
@@ -209,6 +220,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const value: GameContextValue = {
     connection,
+    socketConfigured,
     room,
     playerId,
     notice,
