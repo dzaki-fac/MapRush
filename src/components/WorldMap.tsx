@@ -40,11 +40,11 @@ export default function WorldMap({
 
   return (
     <ComposableMap
-      projection="geoEqualEarth"
-      projectionConfig={{ scale: 180, center: [0, 12] }}
+      projection="geoMercator"
+      projectionConfig={{ scale: 116, center: [0, 0] }}
       width={1000}
-      height={520}
-      className="h-auto w-full"
+      height={720}
+      className="h-auto max-h-full w-full"
     >
       <Graticule stroke="#2b353c" strokeWidth={0.25} />
       <Geographies geography={GEOGRAPHY_URL}>

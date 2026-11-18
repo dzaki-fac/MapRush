@@ -103,13 +103,13 @@ export function Result() {
         <div className="mt-3 grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
           <Panel className="flex min-h-0 flex-col overflow-hidden">
             <div className="flex h-11 shrink-0 items-center justify-between border-b border-line px-4">
-              <p className="font-mono text-[11px] text-fg-faint">Peta hasil · Equal Earth</p>
+              <p className="font-mono text-[11px] text-fg-faint">Peta hasil · Mercator</p>
               <p className="font-mono text-[11px] text-fg-faint tnum">
                 {usedCountries.length} negara diklaim
               </p>
             </div>
-            <div className="grid place-items-center bg-ink-950/50 p-2">
-              <div className="w-full">
+            <div className="grid min-h-0 flex-1 place-items-center bg-ink-950/50 p-2">
+              <div className="flex h-full min-h-0 w-full items-center justify-center">
                 <WorldMapCanvas usedCountries={usedCountries} players={players} />
               </div>
             </div>

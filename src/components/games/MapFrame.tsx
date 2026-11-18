@@ -16,8 +16,10 @@ export function MapFrame({
         <p className="font-mono text-[11px] text-fg-faint">{title}</p>
         {right}
       </div>
-      <div className="grid place-items-center bg-ink-950/50 p-2">
-        <div className="w-full">{children}</div>
+      <div className="grid min-h-0 flex-1 place-items-center bg-ink-950/50 p-2">
+        <div className="flex h-full min-h-0 w-full items-center justify-center">
+          {children}
+        </div>
       </div>
     </Panel>
   );

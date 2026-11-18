@@ -93,7 +93,7 @@ export function Lobby() {
           <div className="mt-auto pt-10">
             <Panel className="p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="font-mono text-[11px] text-fg-faint">Peta dunia · Equal Earth</p>
+                <p className="font-mono text-[11px] text-fg-faint">Peta dunia · Mercator</p>
                 <div className="flex gap-4 text-[11px] text-fg-muted">
                   <span className="flex items-center gap-2">
                     <span
@@ -111,7 +111,7 @@ export function Lobby() {
                   </span>
                 </div>
               </div>
-              <div className="mt-3">
+              <div className="mt-3 flex h-[240px] items-center justify-center">
                 <WorldMapCanvas usedCountries={[]} players={[]} />
               </div>
             </Panel>

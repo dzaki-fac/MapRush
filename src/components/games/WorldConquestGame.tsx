@@ -46,7 +46,7 @@ export function WorldConquestGame() {
 
         <div className="mt-3 grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
           <MapFrame
-            title="Peta dunia · Equal Earth"
+            title="Peta dunia · Mercator"
             right={<TimerLabel seconds={seconds} urgent={seconds <= 15} />}
           >
             <WorldMapCanvas usedCountries={room.usedCountries} players={room.players} />
