@@ -2,6 +2,16 @@ export type PlayerId = string;
 
 export type GameMode = "duel" | "solo";
 
+export type GameType = "world-conquest" | "country-hunt" | "continent-rush";
+
+export type Continent =
+  | "Asia"
+  | "Europe"
+  | "Africa"
+  | "North America"
+  | "South America"
+  | "Oceania";
+
 export type GameStatus = "waiting" | "countdown" | "playing" | "finished";
 
 export interface Player {
@@ -29,6 +39,37 @@ export interface GameResult {
   scores: Record<PlayerId, number>;
 }
 
+/** Target negara pada Country Hunt. questionId mencegah jawaban lama diproses. */
+export interface HuntTarget {
+  questionId: string;
+  ccn3: string;
+  name: string;
+}
+
+export interface HuntFeedback {
+  playerId: PlayerId;
+  ccn3: string;
+  kind: "correct" | "wrong";
+  at: number;
+}
+
+export interface HuntState {
+  target: HuntTarget | null;
+  usedTargets: string[];
+  feedback: HuntFeedback[];
+  lastWinnerId: PlayerId | null;
+  round: number;
+}
+
+export interface RushState {
+  order: Continent[];
+  index: number;
+  active: Continent | null;
+  nextAt: number | null;
+  remainingMs: number;
+  round: number;
+}
+
 /**
  * RoomState adalah source of truth untuk satu pertandingan.
  * Disimpan di server (in-memory untuk MVP), bukan di browser.
@@ -36,6 +77,7 @@ export interface GameResult {
 export interface RoomState {
   code: string;
   mode: GameMode;
+  gameType: GameType;
   ownerId: PlayerId;
   players: Player[];
   status: GameStatus;
@@ -44,7 +86,9 @@ export interface RoomState {
   endsAt: number | null;
   durationMs: number;
   countdownMs: number;
-  countdownEndsAt: number | null;
+  countdownEndsAt: null | number;
   result: GameResult | null;
+  hunt: HuntState | null;
+  rush: RushState | null;
   createdAt: number;
 }

@@ -8,6 +8,7 @@ import { Panel } from "@/components/ui/Panel";
 import { NoticeBanner } from "@/components/NoticeBanner";
 import { MapRule } from "@/components/MapRule";
 import { WorldMapCanvas } from "@/components/WorldMapCanvas";
+import { modeInfo } from "@/lib/game-modes";
 import type { Player } from "@/shared/types";
 
 function FinalScore({
@@ -162,7 +163,7 @@ export function Result() {
       <footer className="flex h-10 shrink-0 items-center justify-between border-t border-line text-[11px] text-fg-faint">
         <span>MapRush</span>
         <span>
-          room {room.code} · {room.mode === "solo" ? "solo" : "1v1"} ·{" "}
+          {modeInfo(room.gameType).name} · {room.mode === "solo" ? "solo" : "1v1"} ·{" "}
           {room.durationMs / 1000} detik
         </span>
       </footer>

@@ -2,20 +2,19 @@ import { WebSocket } from "ws";
 import type { RawData } from "ws";
 import { InMemoryRoomStore } from "./gameStore";
 import * as engine from "./gameEngine";
+import { getModeHandler, type AnswerOutcome } from "./modes";
 import { COUNTDOWN_MS, MAX_NICKNAME_LENGTH } from "../src/shared/constants";
 import type {
   ClientMessage,
   NoticeKind,
   ServerMessage,
 } from "../src/shared/protocol";
-import type { RoomState } from "../src/shared/types";
+import type { GameType, RoomState } from "../src/shared/types";
 
 /**
  * Seluruh logika server game, tanpa transport/listener.
  * Dipakai baik oleh WS server mandiri (development) maupun oleh Route Handler
  * `/api/ws` di Vercel Functions via `upgradeWebSocket()`.
- *
- * Satu instance = satu source of truth untuk room-room yang ditanganinya.
  */
 export class GameServer {
   private store = new InMemoryRoomStore();
@@ -37,13 +36,8 @@ export class GameServer {
     this.send(ws, { type: "ERROR", message });
   }
 
-  private sendNotice(
-    ws: WebSocket,
-    kind: NoticeKind,
-    message: string,
-    countryName?: string,
-  ) {
-    this.send(ws, { type: "NOTICE", kind, message, countryName });
+  private sendNotice(ws: WebSocket, kind: NoticeKind, message: string) {
+    this.send(ws, { type: "NOTICE", kind, message });
   }
 
   private broadcast(room: RoomState, message: ServerMessage) {
@@ -51,6 +45,10 @@ export class GameServer {
       const socket = this.playerSockets.get(player.id);
       if (socket) this.send(socket, message);
     }
+  }
+
+  private broadcastNotice(room: RoomState, kind: NoticeKind, message: string) {
+    this.broadcast(room, { type: "NOTICE", kind, message });
   }
 
   private broadcastState(room: RoomState) {
@@ -75,14 +73,27 @@ export class GameServer {
     return nickname.length ? nickname : null;
   }
 
+  private cleanGameType(value: unknown): GameType {
+    return value === "country-hunt" || value === "continent-rush"
+      ? value
+      : "world-conquest";
+  }
+
   private stopTimer(roomCode: string) {
     const timer = this.timers.get(roomCode);
     if (timer) clearInterval(timer);
     this.timers.delete(roomCode);
   }
 
+  private stopCountdownTimer(roomCode: string) {
+    const timer = this.countdownTimers.get(roomCode);
+    if (timer) clearInterval(timer);
+    this.countdownTimers.delete(roomCode);
+  }
+
   private startTimer(room: RoomState) {
     this.stopTimer(room.code);
+    const mode = getModeHandler(room.gameType);
     const timer = setInterval(() => {
       const current = this.store.get(room.code);
       if (!current || current.status !== "playing") {
@@ -93,19 +104,17 @@ export class GameServer {
       const remaining = Math.max(0, (current.endsAt ?? Date.now()) - Date.now());
       current.remainingMs = remaining;
 
-      if (remaining <= 0) {
-        engine.finishGame(current);
+      const tick = mode.onTick?.(current, Date.now());
+      if (tick?.notice) {
+        this.broadcastNotice(current, tick.notice.kind, tick.notice.message);
+      }
+      if (tick?.finish || remaining <= 0) {
         this.stopTimer(current.code);
+        engine.finishGame(current);
       }
       this.broadcastState(current);
     }, 1000);
     this.timers.set(room.code, timer);
-  }
-
-  private stopCountdownTimer(roomCode: string) {
-    const timer = this.countdownTimers.get(roomCode);
-    if (timer) clearInterval(timer);
-    this.countdownTimers.delete(roomCode);
   }
 
   private startCountdownTimer(room: RoomState) {
@@ -126,11 +135,31 @@ export class GameServer {
       if (remaining <= 0) {
         this.stopCountdownTimer(current.code);
         engine.startGame(current);
+        // Mode menyiapkan state khusus tepat saat game mulai (target/benua).
+        getModeHandler(current.gameType).onStart(current);
         this.startTimer(current);
       }
       this.broadcastState(current);
     }, 200);
     this.countdownTimers.set(room.code, timer);
+  }
+
+  private handleOutcome(
+    ws: WebSocket,
+    room: RoomState,
+    outcome: AnswerOutcome,
+  ) {
+    this.sendNotice(ws, outcome.noticeKind, outcome.message);
+    if (outcome.broadcast) {
+      this.broadcastNotice(room, outcome.broadcast.kind, outcome.broadcast.message);
+    }
+    if (outcome.changed || outcome.finish) {
+      if (outcome.finish) {
+        this.stopTimer(room.code);
+        engine.finishGame(room);
+      }
+      this.broadcastState(room);
+    }
   }
 
   private removePlayerFromRoom(room: RoomState, playerId: string) {
@@ -167,33 +196,22 @@ export class GameServer {
       }
 
       switch (message.type) {
-        case "CREATE_ROOM": {
-          const nickname = this.cleanNickname(message.nickname);
-          if (!nickname) return this.sendError(ws, "Nickname wajib diisi");
-
-          let created = engine.createRoom(nickname);
-          while (this.store.get(created.room.code)) created = engine.createRoom(nickname);
-
-          this.store.set(created.room.code, created.room);
-          this.bindSocket(ws, created.room.code, created.playerId);
-          this.send(ws, {
-            type: "JOINED",
-            roomCode: created.room.code,
-            playerId: created.playerId,
-            room: created.room,
-          });
-          break;
-        }
-
+        case "CREATE_ROOM":
         case "CREATE_SOLO": {
           const nickname = this.cleanNickname(message.nickname);
           if (!nickname) return this.sendError(ws, "Nickname wajib diisi");
 
-          let created = engine.createRoom(nickname);
-          while (this.store.get(created.room.code)) created = engine.createRoom(nickname);
+          const gameType = this.cleanGameType(message.gameType);
+          let created = engine.createRoom(nickname, gameType);
+          while (this.store.get(created.room.code)) {
+            created = engine.createRoom(nickname, gameType);
+          }
 
-          created.room.mode = "solo";
-          engine.startCountdown(created.room);
+          if (message.type === "CREATE_SOLO") {
+            created.room.mode = "solo";
+            engine.startCountdown(created.room);
+          }
+
           this.store.set(created.room.code, created.room);
           this.bindSocket(ws, created.room.code, created.playerId);
           this.send(ws, {
@@ -202,8 +220,11 @@ export class GameServer {
             playerId: created.playerId,
             room: created.room,
           });
-          this.startCountdownTimer(created.room);
-          this.broadcastState(created.room);
+
+          if (message.type === "CREATE_SOLO") {
+            this.startCountdownTimer(created.room);
+            this.broadcastState(created.room);
+          }
           break;
         }
 
@@ -248,6 +269,22 @@ export class GameServer {
           break;
         }
 
+        case "SET_GAME_TYPE": {
+          const room = this.store.get(message.roomCode);
+          if (!room) return this.sendError(ws, "Room tidak ditemukan");
+          if (room.ownerId !== message.playerId) {
+            return this.sendError(ws, "Hanya host yang bisa mengganti mode");
+          }
+          if (room.status !== "waiting") {
+            return this.sendError(ws, "Mode tidak bisa diganti saat game berlangsung");
+          }
+          room.gameType = this.cleanGameType(message.gameType);
+          room.durationMs = engine.durationForGameType(room.gameType);
+          room.remainingMs = room.durationMs;
+          this.broadcastState(room);
+          break;
+        }
+
         case "START_GAME": {
           const room = this.store.get(message.roomCode);
           if (!room) return this.sendError(ws, "Room tidak ditemukan");
@@ -274,30 +311,41 @@ export class GameServer {
           if (!this.playerSockets.get(message.playerId)) {
             return this.sendError(ws, "Koneksi pemain tidak ditemukan");
           }
-
+          const handler = getModeHandler(room.gameType);
+          if (!handler.submitGuess) {
+            return this.sendError(ws, "Mode ini memakai klik pada peta");
+          }
           const guess =
             typeof message.guess === "string" ? message.guess.slice(0, 100) : "";
-          const outcome = engine.applyGuess(room, message.playerId, guess);
-          switch (outcome.kind) {
-            case "correct":
-              this.sendNotice(
-                ws,
-                "correct",
-                `Benar! +1 — ${outcome.countryName}`,
-                outcome.countryName,
-              );
-              this.broadcastState(room);
-              break;
-            case "invalid":
-              this.sendNotice(ws, "invalid", "Negara tidak valid");
-              break;
-            case "duplicate":
-              this.sendNotice(ws, "duplicate", "Negara sudah dipakai");
-              break;
-            case "ignored":
-              this.sendNotice(ws, "info", outcome.reason);
-              break;
+          this.handleOutcome(
+            ws,
+            room,
+            handler.submitGuess(room, message.playerId, guess),
+          );
+          break;
+        }
+
+        case "SUBMIT_CLICK": {
+          const room = this.store.get(message.roomCode);
+          if (!room) return this.sendError(ws, "Room tidak ditemukan");
+          if (!this.playerSockets.get(message.playerId)) {
+            return this.sendError(ws, "Koneksi pemain tidak ditemukan");
           }
+          const handler = getModeHandler(room.gameType);
+          if (!handler.submitClick) {
+            return this.sendError(ws, "Mode ini memakai jawaban teks");
+          }
+          const ccn3 = String(Number(message.ccn3));
+          this.handleOutcome(
+            ws,
+            room,
+            handler.submitClick(
+              room,
+              message.playerId,
+              String(message.questionId ?? ""),
+              ccn3,
+            ),
+          );
           break;
         }
 

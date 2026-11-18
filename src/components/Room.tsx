@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ArrowLeft, Copy, Check, Link2 } from "lucide-react";
 import { useGame } from "@/context/GameContext";
+import { GAME_MODES, modeInfo } from "@/lib/game-modes";
 import { AppBar } from "@/components/AppBar";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
@@ -11,7 +12,7 @@ import { MapRule } from "@/components/MapRule";
 import { copyText } from "@/lib/clipboard";
 
 export function Room() {
-  const { room, playerId, connection, startGame, leaveRoom, notice } = useGame();
+  const { room, playerId, connection, startGame, setGameType, leaveRoom, notice } = useGame();
   const [copied, setCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
 
@@ -115,11 +116,46 @@ export function Room() {
                     : "Bagikan kode atau tautan ke lawanmu"}
               </p>
             </div>
-            <p className="text-xs text-fg-muted sm:text-right">
-              Mode bebas
-              <br />
-              <span className="text-fg-faint">Kedua pemain menjawab kapan saja</span>
-            </p>
+            <div className="text-xs text-fg-muted sm:text-right">
+              <p>{modeInfo(room.gameType).name}</p>
+              <p className="mt-1 text-fg-faint">
+                {modeInfo(room.gameType).duration} detik · mode bebas
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <p className="field-label">Mode permainan</p>
+            {isHost ? (
+              <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                {GAME_MODES.map((mode) => (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    onClick={() => setGameType(mode.id)}
+                    className={`rounded-control border px-3 py-2 text-left text-[11px] transition-colors duration-150 ${
+                      mode.id === room.gameType
+                        ? "border-accent/60 bg-accent/5 text-fg"
+                        : "border-line text-fg-muted hover:border-ink-700 hover:text-fg"
+                    }`}
+                  >
+                    {mode.name}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-fg">
+                {modeInfo(room.gameType).name}
+                <span className="ml-2 text-xs text-fg-faint">
+                  {modeInfo(room.gameType).description}
+                </span>
+              </p>
+            )}
+            {isHost && (
+              <p className="mt-2 text-[11px] text-fg-faint">
+                Mode bisa diganti sebelum game dimulai.
+              </p>
+            )}
           </div>
 
           <MapRule className="my-6" />

@@ -12,8 +12,10 @@
     "typecheck": "tsc --noEmit",
     "test:names": "tsx scripts/check-names.mjs",
     "test:engine": "tsx scripts/check-engine.mjs",
-    "test:smoke": "node scripts/smoke-test.mjs",
-    "postinstall": "node scripts/copy-geography.mjs"
+    "test:smoke": "tsx scripts/smoke-test.mjs",
+    "test:modes": "tsx scripts/check-modes.mjs",
+    "generate:mode-data": "node scripts/generate-mode-data.mjs",
+    "postinstall": "node scripts/copy-geography.mjs && node scripts/generate-mode-data.mjs"
   },
   "dependencies": {
     "@vercel/functions": "^3.11.3",

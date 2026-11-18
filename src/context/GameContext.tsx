@@ -17,7 +17,7 @@ import type {
   NoticeKind,
   ServerMessage,
 } from "@/shared/protocol";
-import type { RoomState } from "@/shared/types";
+import type { GameType, RoomState } from "@/shared/types";
 
 export interface Notice {
   id: number;
@@ -33,12 +33,14 @@ interface GameContextValue {
   room: RoomState | null;
   playerId: string | null;
   notice: Notice | null;
-  createRoom: (nickname: string) => void;
-  createSolo: (nickname: string) => void;
+  createRoom: (nickname: string, gameType?: GameType) => void;
+  createSolo: (nickname: string, gameType?: GameType) => void;
   joinRoom: (roomCode: string, nickname: string) => void;
   reconnect: (roomCode: string, playerId: string) => void;
+  setGameType: (gameType: GameType) => void;
   startGame: () => void;
   submitGuess: (guess: string) => void;
+  submitClick: (questionId: string, ccn3: string) => void;
   requestRematch: () => void;
   leaveRoom: () => void;
   clearNotice: () => void;
@@ -222,13 +224,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
     room,
     playerId,
     notice,
-    createRoom: (nickname) => {
+    createRoom: (nickname, gameType = "world-conquest") => {
       ensureSocket();
-      send({ type: "CREATE_ROOM", nickname });
+      send({ type: "CREATE_ROOM", nickname, gameType });
     },
-    createSolo: (nickname) => {
+    createSolo: (nickname, gameType = "world-conquest") => {
       ensureSocket();
-      send({ type: "CREATE_SOLO", nickname });
+      send({ type: "CREATE_SOLO", nickname, gameType });
     },
     joinRoom: (roomCode, nickname) => {
       ensureSocket();
@@ -239,6 +241,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
       reconnectingRef.current = true;
       send({ type: "RECONNECT", roomCode, playerId: id });
     },
+    setGameType: (gameType) =>
+      withRoom((code, id) => ({
+        type: "SET_GAME_TYPE",
+        roomCode: code,
+        playerId: id,
+        gameType,
+      })),
     startGame: () =>
       withRoom((code, id) => ({ type: "START_GAME", roomCode: code, playerId: id })),
     submitGuess: (guess) =>
@@ -247,6 +256,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
         roomCode: code,
         playerId: id,
         guess,
+      })),
+    submitClick: (questionId, ccn3) =>
+      withRoom((code, id) => ({
+        type: "SUBMIT_CLICK",
+        roomCode: code,
+        playerId: id,
+        questionId,
+        ccn3,
       })),
     requestRematch: () =>
       withRoom((code, id) => ({ type: "REMATCH", roomCode: code, playerId: id })),

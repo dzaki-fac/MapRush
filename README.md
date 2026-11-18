@@ -1,6 +1,6 @@
 # MapRush 🌍
 
-Web game multiplayer **1v1** bertema tebak/sebut nama negara. Pemain mengetik nama negara, negara yang berhasil disebut berubah warna di peta sesuai pemain, dan skor bertambah. Pemenang ditentukan saat timer habis.
+Web game multiplayer **1v1** bertema negara dengan tiga mode: **World Conquest**, **Country Hunt**, dan **Continent Rush**. Semua mode memakai satu peta dunia, satu alur room, dan satu source of truth di server. Pemenang ditentukan saat timer habis.
 
 - **Next.js 16 (App Router) + TypeScript + Tailwind CSS**
 - **WebSocket** real-time (`ws`) — state game sepenuhnya di server
@@ -10,9 +10,17 @@ Web game multiplayer **1v1** bertema tebak/sebut nama negara. Pemain mengetik na
 
 ---
 
-## 1. Keputusan mode gameplay
+## 1. Mode permainan
 
-Saya memilih **Mode Bebas (free-for-all)**: kedua pemain bisa mengetik jawaban kapan saja selama timer masih berjalan.
+Tiga mode dapat dipilih di lobby sebelum room dibuat. Host juga bisa menggantinya di ruang tunggu sebelum game dimulai; setelah itu mode terkunci dan rematch memakai mode yang sama.
+
+| Mode | Cara main | Skor | Durasi |
+|---|---|---|---|
+| World Conquest | Ketik nama negara, klaim wilayah di peta | +1 / negara benar | 90 dtk |
+| Country Hunt | Klik lokasi negara yang diminta sistem | +5 benar, -1 salah (min. 0) | 90 dtk |
+| Continent Rush | Ketik negara dari benua aktif | +1 / negara benar | 120 dtk, benua berganti tiap 20 dtk |
+
+Semua mode memakai **Mode Bebas (free-for-all)**: kedua pemain bisa mengetik jawaban kapan saja selama timer masih berjalan.
 
 **Alasan:**
 - Paling sederhana dan stabil untuk MVP — tidak ada sinkronisasi giliran, tidak ada timeout per-giliran, tidak ada screenshots "turn indicator" yang harus dikelola.
@@ -21,8 +29,10 @@ Saya memilih **Mode Bebas (free-for-all)**: kedua pemain bisa mengetik jawaban k
 
 Konsekuensinya: **tidak ada indikator giliran** di UI (sesuai permintaan, indikator hanya dipakai jika mode turn-based). Jika nanti ingin mode turn-based, titik perubahannya kecil: tambahkan `turnPlayerId` + `turnEndsAt` di `RoomState` dan validasi di `gameEngine.applyGuess`.
 
-### Mode tambahan
+### Country Hunt & Continent Rush
 
+- **Country Hunt** — server memilih target secara acak dari negara yang punya geometri di peta 110m, mengirim `questionId` ke kedua pemain, dan hanya memproses klik dengan `questionId` aktif. Klik benar memberi +5, salah -1 dengan batas bawah 0, lalu target langsung berganti. Negative race diatasi dengan urutan penerimaan event di server.
+- **Continent Rush** — enam benua diacak per match dan berganti tiap 20 detik oleh server timer. Validasi memakai klasifikasi benua eksplisit dari dataset (`continent-codes.ts`), alias tetap didukung, dan negara yang sudah diklaim tetap terkunci walau benua berganti. Peta menampilkan highlight benua aktif, negara di luar benua diredupkan, warna pemain tetap dominan.
 - **Countdown 3 detik** — setelah host menekan *Mulai game* (atau saat memulai solo), server mengirim status `countdown` sebelum `playing`. Jawaban yang diketik saat countdown diabaikan. Hitung mundurnya berasal dari server, jadi kedua pemain melihat angka yang sama.
 - **Single player** — tab **Solo** di lobby membuat room dengan `mode: "solo"` dan langsung masuk countdown. Aturan, validasi, dan timer sama seperti 1v1; hanya saja tidak ada lawan. Layar hasil menampilkan "Selesai" dan jumlah negara yang berhasil disebut.
 - **Nickname tersimpan** — nickname disimpan di cookie (`maprush.nickname`, 1 tahun, `SameSite=Lax`), jadi tidak perlu diketik ulang di lobby maupun saat membuka link undangan.
@@ -37,7 +47,9 @@ MapRush/
 │   ├── copy-geography.mjs      # copy TopoJSON world-atlas -> public/ (dijalankan postinstall)
 │   ├── smoke-test.mjs          # test alur multiplayer end-to-end (2 client WS)
 │   ├── check-names.mjs         # cek normalisasi & alias negara
-│   └── check-engine.mjs        # cek logika skor/hasil/rematch
+│   ├── check-engine.mjs        # cek logika skor/hasil/rematch
+│   ├── check-modes.mjs         # pengujian ketiga mode
+│   └── generate-mode-data.mjs  # generate kode negara clickable + peta benua
 ├── public/
 │   └── geographies/
 │       └── countries-110m.json # peta dunia (digenerate otomatis saat npm install)
@@ -45,7 +57,14 @@ MapRush/
 │   ├── index.ts                # entry WS server mandiri untuk development (:8080)
 │   ├── gameServer.ts           # routing pesan, broadcast, timer, disconnect (dipakai dua transport)
 │   ├── gameStore.ts            # abstraksi RoomStore + implementasi InMemoryRoomStore
-│   └── gameEngine.ts           # logika murni: create/join/start/guess/finish/rematch
+│   ├── gameEngine.ts           # logika umum: create/join/start/finish/rematch
+│   ├── country-validator.ts    # pencarian negara + klasifikasi benua
+│   └── modes/                  # LOGIA PER MODE (terpisah, tanpa if-else besar)
+│       ├── types.ts            # kontrak AnswerOutcome / TickResult / GameModeHandler
+│       ├── index.ts            # dispatcher berdasarkan room.gameType
+│       ├── world-conquest.ts
+│       ├── country-hunt.ts
+│       └── continent-rush.ts
 ├── src/
 │   ├── app/
 │   │   ├── api/ws/route.ts     # WebSocket native Vercel (/api/ws via upgradeWebSocket)
@@ -57,8 +76,10 @@ MapRush/
 │   │   ├── Lobby.tsx           # nickname, create room, join room
 │   │   ├── Room.tsx            # kode room, daftar pemain, tombol Start (host)
 │   │   ├── Countdown.tsx       # hitung mundur 3 detik dari state server
-│   │   ├── Game.tsx            # peta, input, skor, timer, daftar negara
-│   │   ├── WorldMap.tsx        # peta SVG dinamis (di-load dynamic, ssr: false)
+│   │   ├── Game.tsx            # router layar game sesuai gameType
+│   │   ├── games/              # WorldConquestGame, CountryHuntGame, ContinentRushGame
+│   │   │   └── MapFrame, ScoreList, GameExtras (komponen bersama)
+│   │   ├── WorldMap.tsx        # peta SVG dinamis (klik, feedback, highlight benua)
 │   │   ├── Result.tsx          # pemenang, skor, rematch, kembali ke lobby
 │   │   ├── NoticeBanner.tsx    # notifikasi benar/salah/duplikat/error
 │   │   └── ui/                 # Button, Input, Panel (reusable)
@@ -71,10 +92,14 @@ MapRush/
 │   │   ├── nicknameCookie.ts   # simpan nickname di cookie (1 tahun)
 │   │   ├── socketUrl.ts        # tentukan URL WS (dev/prod)
 │   │   └── clipboard.ts
+│   ├── data/                   # data statis hasil generate (commit ke repo)
+│   │   ├── continent-codes.ts  # ccn3 -> benua (klasifikasi eksplisit)
+│   │   └── map-country-codes.ts# ccn3 yang punya geometri clickable
+│   ├── lib/game-modes.ts       # metadata mode untuk UI lobby & room
 │   ├── shared/                 # TIPE & KONSTANTA dipakai client DAN server
-│   │   ├── types.ts            # RoomState, Player, UsedCountry, GameResult
+│   │   ├── types.ts            # RoomState, GameType, HuntState, RushState, dll
 │   │   ├── protocol.ts         # tipe pesan client <-> server
-│   │   └── constants.ts        # warna pemain, durasi game
+│   │   └── constants.ts        # warna pemain, durasi & aturan skor tiap mode
 │   └── types/
 │       └── world-countries.d.ts
 ├── package.json
@@ -166,10 +191,19 @@ npm run build         # build produksi frontend
 npm run server        # jalankan WS server mode produksi
 
 # Test (WS server harus sudah jalan untuk smoke-test)
-node scripts/smoke-test.mjs
-npx tsx scripts/check-names.mjs
-npx tsx scripts/check-engine.mjs
+npm run test:smoke   # 3 mode, 2 client WS — create/join/countdown/jawaban/sinkronisasi
+npm run test:modes   # unit test aturan tiap mode
+npm run test:engine  # test engine umum & rematch
+npm run test:names   # normalisasi & alias negara
+npm run generate:mode-data  # regenerasi data benua/negara clickable
 ```
+
+### Pengujian yang tercakup
+
+- Country Hunt: +5 benar, -1 salah, skor minimum 0, hanya jawaban pertama yang menang, target tidak diulang, jawaban dengan `questionId` lama diabaikan.
+- Continent Rush: negara benua aktif diterima, negara benua lain ditolak, klaim ganda ditolak, pergantian benua mengikuti timer server.
+- World Conquest: regresi +1, duplikat, dan negara tidak valid.
+- Waktu habis menghentikan timer dan pemenang/seri dihitung dari skor server. Rematch tetap memakai mode yang sama.
 
 ---
 

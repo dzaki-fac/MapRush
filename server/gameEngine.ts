@@ -1,16 +1,20 @@
 import { randomUUID } from "node:crypto";
-import { findCountryByGuess } from "../src/lib/countries";
 import {
   COUNTDOWN_MS,
   GAME_DURATION_MS,
   PLAYER_COLORS,
+  RUSH_DURATION_MS,
 } from "../src/shared/constants";
 import type {
   GameResult,
+  GameType,
   Player,
   RoomState,
-  UsedCountry,
 } from "../src/shared/types";
+
+export function durationForGameType(gameType: GameType): number {
+  return gameType === "continent-rush" ? RUSH_DURATION_MS : GAME_DURATION_MS;
+}
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -22,11 +26,15 @@ export function makeRoomCode(): string {
   return code;
 }
 
-export function createRoom(nickname: string): { room: RoomState; playerId: string } {
+export function createRoom(
+  nickname: string,
+  gameType: GameType = "world-conquest",
+): { room: RoomState; playerId: string } {
   const playerId = randomUUID();
   const room: RoomState = {
     code: makeRoomCode(),
     mode: "duel",
+    gameType,
     ownerId: playerId,
     players: [
       {
@@ -40,12 +48,14 @@ export function createRoom(nickname: string): { room: RoomState; playerId: strin
     ],
     status: "waiting",
     usedCountries: [],
-    remainingMs: GAME_DURATION_MS,
+    remainingMs: durationForGameType(gameType),
     endsAt: null,
-    durationMs: GAME_DURATION_MS,
+    durationMs: durationForGameType(gameType),
     countdownMs: COUNTDOWN_MS,
     countdownEndsAt: null,
     result: null,
+    hunt: null,
+    rush: null,
     createdAt: Date.now(),
   };
   return { room, playerId };
@@ -66,6 +76,8 @@ export function joinRoom(room: RoomState, nickname: string): Player {
 
 function prepareRound(room: RoomState): void {
   room.usedCountries = [];
+  room.hunt = null;
+  room.rush = null;
   room.result = null;
   room.remainingMs = room.durationMs;
   room.endsAt = null;
@@ -134,40 +146,4 @@ export function rematch(room: RoomState): boolean {
   return canStart;
 }
 
-export type GuessOutcome =
-  | { kind: "correct"; countryName: string; flag: string }
-  | { kind: "invalid" }
-  | { kind: "duplicate" }
-  | { kind: "ignored"; reason: string };
-
-/** Validasi + mutasi state. Server adalah satu-satunya penentu jawaban benar/salah. */
-export function applyGuess(
-  room: RoomState,
-  playerId: string,
-  rawGuess: string,
-): GuessOutcome {
-  if (room.status !== "playing") {
-    return { kind: "ignored", reason: "Game belum dimulai atau sudah selesai" };
-  }
-
-  const player = room.players.find((p) => p.id === playerId);
-  if (!player) return { kind: "ignored", reason: "Pemain tidak ditemukan" };
-
-  const country = findCountryByGuess(rawGuess);
-  if (!country) return { kind: "invalid" };
-
-  const isUsed = room.usedCountries.some((u) => u.ccn3 === country.ccn3);
-  if (isUsed) return { kind: "duplicate" };
-
-  const used: UsedCountry = {
-    ccn3: country.ccn3,
-    name: country.name,
-    ownerId: playerId,
-    ownerNickname: player.nickname,
-    at: Date.now(),
-  };
-  room.usedCountries.push(used);
-  player.score += 1;
-
-  return { kind: "correct", countryName: country.name, flag: country.flag };
-}
+/** Validasi dan mutasi jawaban kini ada di server/modes/<game-type>.ts. */

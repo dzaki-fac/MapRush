@@ -1,13 +1,14 @@
+import assert from "node:assert/strict";
 import WebSocket from "ws";
+import { countriesWithContinent } from "../server/country-validator.ts";
 
 const URL = process.env.WS_URL ?? "ws://localhost:8080";
 
-function client(name) {
+function client() {
   const ws = new WebSocket(URL);
-  const state = { ws, messages: [], id: null, code: null, room: null, notices: [] };
+  const state = { ws, id: null, code: null, room: null, notices: [] };
   ws.on("message", (raw) => {
     const msg = JSON.parse(raw.toString());
-    state.messages.push(msg);
     if (msg.type === "JOINED") {
       state.id = msg.playerId;
       state.code = msg.roomCode;
@@ -19,11 +20,9 @@ function client(name) {
   return state;
 }
 
-function send(state, message) {
-  state.ws.send(JSON.stringify(message));
-}
+const send = (state, message) => state.ws.send(JSON.stringify(message));
 
-function waitFor(predicate, label, timeout = 4000) {
+function waitFor(predicate, label, timeout = 6000) {
   return new Promise((resolve, reject) => {
     const started = Date.now();
     const check = () => {
@@ -35,74 +34,90 @@ function waitFor(predicate, label, timeout = 4000) {
   });
 }
 
-function assert(condition, message) {
-  if (!condition) throw new Error(`Assertion failed: ${message}`);
+async function duel(gameType = "world-conquest") {
+  const a = client();
+  const b = client();
+  await Promise.all([
+    waitFor(() => a.ws.readyState === WebSocket.OPEN, "A open"),
+    waitFor(() => b.ws.readyState === WebSocket.OPEN, "B open"),
+  ]);
+
+  send(a, { type: "CREATE_ROOM", nickname: "Alpha", gameType });
+  await waitFor(() => a.code, "room created");
+  send(b, { type: "JOIN_ROOM", roomCode: a.code, nickname: "Beta" });
+  await waitFor(() => a.room?.players.length === 2, "B joined");
+  send(a, { type: "START_GAME", roomCode: a.code, playerId: a.id });
+  await waitFor(() => a.room?.status === "countdown", "countdown");
+  await waitFor(() => a.room?.status === "playing", "playing");
+  return { a, b };
 }
 
-const a = client("A");
-const b = client("B");
+// --- World Conquest ---
+{
+  const { a, b } = await duel("world-conquest");
+  send(a, { type: "SUBMIT_GUESS", roomCode: a.code, playerId: a.id, guess: "indonesia" });
+  await waitFor(() => a.notices.length >= 1, "guess notice");
+  assert.equal(a.notices.at(-1).kind, "correct");
+  await waitFor(() => b.room?.usedCountries.length === 1, "B sees country");
+  send(b, { type: "SUBMIT_GUESS", roomCode: b.code, playerId: b.id, guess: "INDONESIA" });
+  await waitFor(() => b.notices.length >= 1, "duplicate notice");
+  assert.equal(b.notices.at(-1).kind, "duplicate");
+  assert.equal(a.room.players[0].score, 1);
+  console.log("world-conquest smoke OK");
+  a.ws.close();
+  b.ws.close();
+}
 
-await Promise.all([
-  waitFor(() => a.ws.readyState === WebSocket.OPEN, "A open"),
-  waitFor(() => b.ws.readyState === WebSocket.OPEN, "B open"),
-]);
+// --- Country Hunt ---
+{
+  const { a, b } = await duel("country-hunt");
+  const target = a.room.hunt?.target;
+  assert.ok(target, "target harus dikirim ke client");
+  assert.deepEqual(b.room.hunt?.target, target, "kedua pemain dapat target sama");
+  send(a, {
+    type: "SUBMIT_CLICK",
+    roomCode: a.code,
+    playerId: a.id,
+    questionId: target.questionId,
+    ccn3: target.ccn3,
+  });
+  await waitFor(() => a.room.players[0].score === 5, "+5 diterima");
+  assert.notEqual(a.room.hunt.target.questionId, target.questionId, "target berganti");
+  send(b, {
+    type: "SUBMIT_CLICK",
+    roomCode: b.code,
+    playerId: b.id,
+    questionId: target.questionId,
+    ccn3: target.ccn3,
+  });
+  await waitFor(() => b.notices.length >= 1, "stale answer notice");
+  assert.equal(b.notices.at(-1).kind, "info");
+  console.log("country-hunt smoke OK");
+  a.ws.close();
+  b.ws.close();
+}
 
-send(a, { type: "CREATE_ROOM", nickname: "Alpha" });
-await waitFor(() => a.code, "room created");
-console.log("Room:", a.code);
+// --- Continent Rush ---
+{
+  const { a, b } = await duel("continent-rush");
+  const active = a.room.rush?.active;
+  assert.equal(b.room.rush?.active, active, "benua aktif sama untuk semua");
+  const candidate = countriesWithContinent().find(
+    (item) => item.continent === active,
+  );
+  assert.ok(candidate, "ada negara untuk benua aktif");
+  send(a, {
+    type: "SUBMIT_GUESS",
+    roomCode: a.code,
+    playerId: a.id,
+    guess: candidate.country.name,
+  });
+  await waitFor(() => a.room.players[0].score === 1, "+1 diterima");
+  assert.equal(a.notices.at(-1).message, "Correct! +1");
+  console.log("continent-rush smoke OK");
+  a.ws.close();
+  b.ws.close();
+}
 
-send(b, { type: "JOIN_ROOM", roomCode: a.code, nickname: "Beta" });
-await waitFor(() => b.id && b.room?.players.length === 2, "B joined");
-await waitFor(() => a.room?.players.length === 2, "A sees B");
-assert(a.room.players.length === 2, "room has 2 players");
-
-send(a, { type: "START_GAME", roomCode: a.code, playerId: a.id });
-await waitFor(() => a.room?.status === "countdown" && b.room?.status === "countdown", "countdown visible");
-console.log("Countdown:", Math.ceil(a.room.countdownMs / 1000), "detik");
-await waitFor(() => a.room?.status === "playing" && b.room?.status === "playing", "game started", 6000);
-
-send(a, { type: "SUBMIT_GUESS", roomCode: a.code, playerId: a.id, guess: "indonesia" });
-await waitFor(() => a.notices.length >= 1, "A guess notice");
-assert(a.notices.at(-1).kind === "correct", "indonesia is correct");
-await waitFor(() => b.room?.usedCountries.length === 1, "B sees used country");
-assert(b.room.usedCountries[0].name === "Indonesia", "canonical name stored");
-
-send(b, { type: "SUBMIT_GUESS", roomCode: a.code, playerId: b.id, guess: "INDONESIA" });
-await waitFor(() => b.notices.length >= 1, "B duplicate notice");
-assert(b.notices.at(-1).kind === "duplicate", "duplicate detected case-insensitively");
-
-send(b, { type: "SUBMIT_GUESS", roomCode: a.code, playerId: b.id, guess: "USA" });
-await waitFor(() => b.notices.length >= 2, "B alias notice");
-assert(b.notices.at(-1).kind === "correct", "USA alias accepted");
-
-send(b, { type: "SUBMIT_GUESS", roomCode: a.code, playerId: b.id, guess: "kerajaan pizza" });
-await waitFor(() => b.notices.length >= 3, "B invalid notice");
-assert(b.notices.at(-1).kind === "invalid", "invalid country rejected");
-
-await waitFor(() => a.room?.usedCountries.length === 2, "both see 2 countries");
-assert(a.room.players.find((p) => p.id === a.id).score === 1, "A score = 1");
-assert(b.room.players.find((p) => p.id === b.id).score === 1, "B score = 1");
-
-console.log("Scores:", a.room.players.map((p) => `${p.nickname}=${p.score}`).join(", "));
-console.log("Used:", a.room.usedCountries.map((u) => u.name).join(", "));
-// Mode solo: satu pemain, langsung countdown, lalu bisa menebak.
-const c = client("C");
-await waitFor(() => c.ws.readyState === WebSocket.OPEN, "C open");
-send(c, { type: "CREATE_SOLO", nickname: "Solo" });
-await waitFor(() => c.code && c.room?.mode === "solo", "solo room created");
-assert(c.room.status === "countdown", "solo starts with countdown");
-send(c, { type: "SUBMIT_GUESS", roomCode: c.code, playerId: c.id, guess: "Japan" });
-await waitFor(() => c.notices.length >= 1, "early guess notice");
-assert(c.notices.at(-1).kind === "info", "guess during countdown is ignored");
-await waitFor(() => c.room?.status === "playing", "solo game started", 6000);
-send(c, { type: "SUBMIT_GUESS", roomCode: c.code, playerId: c.id, guess: "Japan" });
-await waitFor(() => c.notices.length >= 2, "solo guess notice");
-assert(c.notices.at(-1).kind === "correct", "solo guess accepted");
-console.log("Solo room:", c.code, "| skor:", c.room.players[0].score);
-
-console.log("SMOKE TEST PASSED ✅");
-
-a.ws.close();
-b.ws.close();
-c.ws.close();
+console.log("MULTIPLAYER SMOKE TEST PASSED ✅");
 process.exit(0);

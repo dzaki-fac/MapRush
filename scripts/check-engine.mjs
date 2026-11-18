@@ -1,33 +1,43 @@
+import assert from "node:assert/strict";
 import {
   createRoom,
   joinRoom,
   startGame,
-  applyGuess,
   finishGame,
   rematch,
+  durationForGameType,
 } from "../server/gameEngine.ts";
+import { getModeHandler } from "../server/modes/index.ts";
 
-let { room, playerId } = createRoom("Alpha");
+const { room, playerId } = createRoom("Alpha");
+assert.equal(room.gameType, "world-conquest");
+assert.equal(durationForGameType("continent-rush"), 120_000);
+
 const p2 = joinRoom(room, "Beta");
+const mode = getModeHandler("world-conquest");
 startGame(room);
+mode.onStart(room);
 
-applyGuess(room, playerId, "Indonesia");
-applyGuess(room, playerId, "Japan");
-applyGuess(room, p2.id, "Brazil");
+assert.equal(mode.submitGuess(room, playerId, "Indonesia").kind, "correct");
+assert.equal(mode.submitGuess(room, playerId, "Japan").kind, "correct");
+assert.equal(mode.submitGuess(room, p2.id, "Brazil").kind, "correct");
 
 finishGame(room);
-console.log("status:", room.status, "| result:", room.result);
-if (room.result.draw || room.result.winnerId !== playerId) throw new Error("Expected Alpha to win");
-if (room.result.scores[playerId] !== 2 || room.result.scores[p2.id] !== 1) throw new Error("Wrong scores");
+assert.equal(room.status, "finished");
+assert.equal(room.result.winnerId, playerId);
+assert.equal(room.result.scores[playerId], 2);
+assert.equal(room.result.scores[p2.id], 1);
 
 const started = rematch(room);
-console.log("rematch started:", started, "| status:", room.status, "| used:", room.usedCountries.length, "| scores:", room.players.map((p) => p.score));
-if (!started || room.status !== "countdown" || room.usedCountries.length !== 0) throw new Error("Rematch failed");
-if (room.players.some((p) => p.score !== 0)) throw new Error("Scores not reset");
+assert.equal(started, true);
+assert.equal(room.status, "countdown");
+assert.equal(room.usedCountries.length, 0);
+assert.ok(room.players.every((p) => p.score === 0));
 
-const solo = createRoom("Solo");
+const solo = createRoom("Solo", "country-hunt");
 solo.room.mode = "solo";
-const soloStarted = rematch(solo.room);
-if (!soloStarted || solo.room.status !== "countdown") throw new Error("Solo rematch failed");
+assert.equal(solo.room.gameType, "country-hunt");
+assert.equal(rematch(solo.room), true);
+assert.equal(solo.room.status, "countdown");
 
 console.log("ENGINE TEST PASSED ✅");

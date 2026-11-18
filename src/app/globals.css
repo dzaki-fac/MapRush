@@ -44,6 +44,20 @@ body {
 .country-free:hover {
   fill: #30414a;
 }
+.country-clickable {
+  cursor: pointer;
+}
+.country-clickable:hover {
+  stroke: #7b8588;
+  stroke-width: 1;
+}
+.country-dimmed {
+  opacity: 0.55;
+}
+.country-feedback-correct,
+.country-feedback-wrong {
+  opacity: 1;
+}
 
 @layer utilities {
   .tnum {
