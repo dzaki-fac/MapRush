@@ -34,6 +34,7 @@ interface GameContextValue {
   playerId: string | null;
   notice: Notice | null;
   createRoom: (nickname: string) => void;
+  createSolo: (nickname: string) => void;
   joinRoom: (roomCode: string, nickname: string) => void;
   reconnect: (roomCode: string, playerId: string) => void;
   startGame: () => void;
@@ -224,6 +225,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
     createRoom: (nickname) => {
       ensureSocket();
       send({ type: "CREATE_ROOM", nickname });
+    },
+    createSolo: (nickname) => {
+      ensureSocket();
+      send({ type: "CREATE_SOLO", nickname });
     },
     joinRoom: (roomCode, nickname) => {
       ensureSocket();

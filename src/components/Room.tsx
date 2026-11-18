@@ -20,7 +20,8 @@ export function Room() {
   const roomCode = room.code;
   const isHost = room.ownerId === playerId;
   const opponent = room.players.find((p) => p.id !== playerId);
-  const ready = room.players.length >= 2;
+  const maxPlayers = room.mode === "solo" ? 1 : 2;
+  const ready = room.players.length >= maxPlayers;
   const seconds = Math.round(room.durationMs / 1000);
 
   async function handleCopy() {
@@ -123,7 +124,9 @@ export function Room() {
 
           <MapRule className="my-6" />
 
-          <p className="field-label">Pemain · {room.players.length}/2</p>
+          <p className="field-label">
+            Pemain · {room.players.length}/{maxPlayers}
+          </p>
           <div className="divide-y divide-line border-y border-line">
             {room.players.map((player) => (
               <div key={player.id} className="flex h-12 items-center gap-3">
@@ -148,7 +151,7 @@ export function Room() {
                 />
               </div>
             ))}
-            {!opponent && (
+            {!opponent && room.mode !== "solo" && (
               <div className="flex h-12 items-center gap-3 text-fg-faint">
                 <span className="h-2.5 w-2.5 shrink-0 rounded-[2px] border border-line" />
                 <span className="flex-1 text-sm">Menunggu pemain kedua</span>

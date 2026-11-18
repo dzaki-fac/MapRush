@@ -3,6 +3,7 @@ import type { RoomState } from "./types";
 /** Pesan yang dikirim browser -> WebSocket server. */
 export type ClientMessage =
   | { type: "CREATE_ROOM"; nickname: string }
+  | { type: "CREATE_SOLO"; nickname: string }
   | { type: "JOIN_ROOM"; roomCode: string; nickname: string }
   | { type: "RECONNECT"; roomCode: string; playerId: string }
   | { type: "START_GAME"; roomCode: string; playerId: string }

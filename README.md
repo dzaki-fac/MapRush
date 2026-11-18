@@ -21,6 +21,12 @@ Saya memilih **Mode Bebas (free-for-all)**: kedua pemain bisa mengetik jawaban k
 
 Konsekuensinya: **tidak ada indikator giliran** di UI (sesuai permintaan, indikator hanya dipakai jika mode turn-based). Jika nanti ingin mode turn-based, titik perubahannya kecil: tambahkan `turnPlayerId` + `turnEndsAt` di `RoomState` dan validasi di `gameEngine.applyGuess`.
 
+### Mode tambahan
+
+- **Countdown 3 detik** — setelah host menekan *Mulai game* (atau saat memulai solo), server mengirim status `countdown` sebelum `playing`. Jawaban yang diketik saat countdown diabaikan. Hitung mundurnya berasal dari server, jadi kedua pemain melihat angka yang sama.
+- **Single player** — tab **Solo** di lobby membuat room dengan `mode: "solo"` dan langsung masuk countdown. Aturan, validasi, dan timer sama seperti 1v1; hanya saja tidak ada lawan. Layar hasil menampilkan "Selesai" dan jumlah negara yang berhasil disebut.
+- **Nickname tersimpan** — nickname disimpan di cookie (`maprush.nickname`, 1 tahun, `SameSite=Lax`), jadi tidak perlu diketik ulang di lobby maupun saat membuka link undangan.
+
 ---
 
 ## 2. Struktur folder
@@ -50,6 +56,7 @@ MapRush/
 │   ├── components/
 │   │   ├── Lobby.tsx           # nickname, create room, join room
 │   │   ├── Room.tsx            # kode room, daftar pemain, tombol Start (host)
+│   │   ├── Countdown.tsx       # hitung mundur 3 detik dari state server
 │   │   ├── Game.tsx            # peta, input, skor, timer, daftar negara
 │   │   ├── WorldMap.tsx        # peta SVG dinamis (di-load dynamic, ssr: false)
 │   │   ├── Result.tsx          # pemenang, skor, rematch, kembali ke lobby
@@ -61,6 +68,7 @@ MapRush/
 │   │   ├── countries.ts        # DAFTAR & pencarian negara (data, bukan logika game)
 │   │   ├── normalize.ts        # helper normalisasi nama
 │   │   ├── session.ts          # simpan playerId di sessionStorage (reconnect)
+│   │   ├── nicknameCookie.ts   # simpan nickname di cookie (1 tahun)
 │   │   ├── socketUrl.ts        # tentukan URL WS (dev/prod)
 │   │   └── clipboard.ts
 │   ├── shared/                 # TIPE & KONSTANTA dipakai client DAN server
@@ -95,7 +103,7 @@ Browser B ─┘                       └─ Vercel: /api/ws (upgradeWebSocket)
                               NOTICE khusus ke pemain yang mengirim jawaban
 ```
 
-State yang disimpan server per room (`RoomState`): `code`, `ownerId`, `players`, `status`, `usedCountries`, `remainingMs`, `endsAt`, `durationMs`, `result`, `createdAt`.
+State yang disimpan server per room (`RoomState`): `code`, `mode` (`duel`/`solo`), `ownerId`, `players`, `status` (`waiting`/`countdown`/`playing`/`finished`), `usedCountries`, `remainingMs`, `endsAt`, `durationMs`, `countdownMs`, `countdownEndsAt`, `result`, `createdAt`.
 
 Client **tidak pernah** menentukan benar/salah/skor — semua divolidasi server. Client tinggal merender `STATE`.
 

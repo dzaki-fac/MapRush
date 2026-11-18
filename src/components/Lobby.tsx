@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useGame } from "@/context/GameContext";
 import { AppBar } from "@/components/AppBar";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +11,7 @@ import { MapRule } from "@/components/MapRule";
 import { WorldMapCanvas } from "@/components/WorldMapCanvas";
 import { GAME_DURATION_MS, PLAYER_COLORS } from "@/shared/constants";
 import { getSocketUrl } from "@/lib/socketUrl";
+import { getSavedNickname, saveNickname } from "@/lib/nicknameCookie";
 
 const rules = [
   {
@@ -32,21 +33,35 @@ const rules = [
 ];
 
 export function Lobby() {
-  const { connection, createRoom, joinRoom, notice } = useGame();
+  const { connection, createRoom, createSolo, joinRoom, notice } = useGame();
   const [nickname, setNickname] = useState("");
   const [roomCode, setRoomCode] = useState("");
-  const [tab, setTab] = useState<"create" | "join">("create");
+  const [tab, setTab] = useState<"create" | "join" | "solo">("create");
+
+  // Dimuat setelah mount agar tidak mismatch dengan HTML dari server.
+  useEffect(() => {
+    setNickname(getSavedNickname());
+  }, []);
 
   function handleCreate(event: FormEvent) {
     event.preventDefault();
     if (!nickname.trim()) return;
+    saveNickname(nickname.trim());
     createRoom(nickname.trim());
   }
 
   function handleJoin(event: FormEvent) {
     event.preventDefault();
     if (!nickname.trim() || !roomCode.trim()) return;
+    saveNickname(nickname.trim());
     joinRoom(roomCode.trim(), nickname.trim());
+  }
+
+  function handleSolo(event: FormEvent) {
+    event.preventDefault();
+    if (!nickname.trim()) return;
+    saveNickname(nickname.trim());
+    createSolo(nickname.trim());
   }
 
   return (
@@ -110,10 +125,12 @@ export function Lobby() {
         <section className="lg:pt-1">
           <Panel className="p-6">
             <h2 className="text-base font-medium">Mulai pertandingan</h2>
-            <p className="mt-1 text-xs text-fg-muted">Masukkan nickname untuk masuk ke room.</p>
+            <p className="mt-1 text-xs text-fg-muted">
+              Nickname tersimpan di browser, tidak perlu diketik ulang.
+            </p>
 
-            <div className="mt-6 flex gap-6 border-b border-line">
-              {(["create", "join"] as const).map((key) => (
+            <div className="mt-6 flex gap-5 border-b border-line">
+              {(["create", "join", "solo"] as const).map((key) => (
                 <button
                   key={key}
                   type="button"
@@ -125,7 +142,7 @@ export function Lobby() {
                   }`}
                   aria-pressed={tab === key}
                 >
-                  {key === "create" ? "Buat room" : "Gabung room"}
+                  {key === "create" ? "Buat room" : key === "join" ? "Gabung room" : "Solo"}
                 </button>
               ))}
             </div>
@@ -171,6 +188,29 @@ export function Lobby() {
                 </Button>
                 <p className="text-xs text-fg-faint">Kamu menjadi host dan mendapat kode room.</p>
               </form>
+            ) : tab === "solo" ? (
+              <form onSubmit={handleSolo} className="mt-6 space-y-4">
+                <Input
+                  id="nickname-solo"
+                  label="Nickname"
+                  placeholder="Misal: GeograferCepat"
+                  autoComplete="off"
+                  maxLength={16}
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                />
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="w-full"
+                  disabled={!nickname.trim() || connection === "offline"}
+                >
+                  Mulai solo
+                </Button>
+                <p className="text-xs text-fg-faint">
+                  Satu pemain, tanpa lawan. Jawaban tetap diverifikasi server.
+                </p>
+              </form>
             ) : (
               <form onSubmit={handleJoin} className="mt-6 space-y-4">
                 <Input
@@ -206,7 +246,7 @@ export function Lobby() {
             )}
           </Panel>
           <p className="mt-4 px-1 text-xs text-fg-faint">
-            Tanpa akun. Cukup satu kode room untuk dua pemain.
+            Tanpa akun. Main solo atau undang teman dengan kode room.
           </p>
         </section>
       </div>

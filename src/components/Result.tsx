@@ -23,12 +23,21 @@ export function Result() {
     counts[used.ownerId] = (counts[used.ownerId] ?? 0) + 1;
   }
 
-  const title = result.draw ? "Seri" : iWon ? "Kamu menang" : `${winner?.nickname ?? "Lawan"} menang`;
-  const subtitle = result.draw
-    ? `Kedua pemain menyebut ${counts[players[0]?.id ?? ""] ?? 0} negara.`
-    : iWon
-      ? `Kamu menyebut ${myCount} negara dalam pertandingan ini.`
-      : `${winner?.nickname ?? "Lawan"} menyebut ${counts[winner?.id ?? ""] ?? 0} negara.`;
+  const isSolo = room.mode === "solo";
+  const title = isSolo
+    ? "Selesai"
+    : result.draw
+      ? "Seri"
+      : iWon
+        ? "Kamu menang"
+        : `${winner?.nickname ?? "Lawan"} menang`;
+  const subtitle = isSolo
+    ? `Kamu menyebut ${myCount} negara dalam ${room.durationMs / 1000} detik.`
+    : result.draw
+      ? `Kedua pemain menyebut ${counts[players[0]?.id ?? ""] ?? 0} negara.`
+      : iWon
+        ? `Kamu menyebut ${myCount} negara dalam pertandingan ini.`
+        : `${winner?.nickname ?? "Lawan"} menyebut ${counts[winner?.id ?? ""] ?? 0} negara.`;
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-[880px] flex-col px-4 sm:px-6">
@@ -42,7 +51,7 @@ export function Result() {
         <Panel className="mt-8 p-6">
           <div className="divide-y divide-line border-y border-line">
             {players.map((player) => {
-              const isWinner = result.winnerId === player.id;
+              const isWinner = !isSolo && result.winnerId === player.id;
               return (
                 <div key={player.id} className="flex h-14 items-center gap-3">
                   <span className="grid w-4 shrink-0 place-items-center">

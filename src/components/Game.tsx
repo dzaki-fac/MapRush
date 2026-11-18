@@ -92,7 +92,11 @@ export function Game() {
             </p>
           </div>
           <div className="justify-self-end">
-            <ScoreCard player={opponent} align="right" />
+            {opponent ? (
+              <ScoreCard player={opponent} align="right" />
+            ) : (
+              <span className="font-mono text-[11px] text-fg-faint">mode solo</span>
+            )}
           </div>
         </div>
 
@@ -113,13 +117,15 @@ export function Game() {
                   />
                   Kamu
                 </span>
-                <span className="flex items-center gap-2">
-                  <span
-                    className="h-2 w-2 rounded-[2px]"
-                    style={{ backgroundColor: opponent?.color }}
-                  />
-                  Lawan
-                </span>
+                {opponent && (
+                  <span className="flex items-center gap-2">
+                    <span
+                      className="h-2 w-2 rounded-[2px]"
+                      style={{ backgroundColor: opponent.color }}
+                    />
+                    Lawan
+                  </span>
+                )}
               </div>
             </div>
             <div className="grid min-h-0 flex-1 place-items-center bg-ink-950/50 p-3">

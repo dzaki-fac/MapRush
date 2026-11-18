@@ -57,7 +57,9 @@ await waitFor(() => a.room?.players.length === 2, "A sees B");
 assert(a.room.players.length === 2, "room has 2 players");
 
 send(a, { type: "START_GAME", roomCode: a.code, playerId: a.id });
-await waitFor(() => a.room?.status === "playing" && b.room?.status === "playing", "game started");
+await waitFor(() => a.room?.status === "countdown" && b.room?.status === "countdown", "countdown visible");
+console.log("Countdown:", Math.ceil(a.room.countdownMs / 1000), "detik");
+await waitFor(() => a.room?.status === "playing" && b.room?.status === "playing", "game started", 6000);
 
 send(a, { type: "SUBMIT_GUESS", roomCode: a.code, playerId: a.id, guess: "indonesia" });
 await waitFor(() => a.notices.length >= 1, "A guess notice");
@@ -83,8 +85,24 @@ assert(b.room.players.find((p) => p.id === b.id).score === 1, "B score = 1");
 
 console.log("Scores:", a.room.players.map((p) => `${p.nickname}=${p.score}`).join(", "));
 console.log("Used:", a.room.usedCountries.map((u) => u.name).join(", "));
+// Mode solo: satu pemain, langsung countdown, lalu bisa menebak.
+const c = client("C");
+await waitFor(() => c.ws.readyState === WebSocket.OPEN, "C open");
+send(c, { type: "CREATE_SOLO", nickname: "Solo" });
+await waitFor(() => c.code && c.room?.mode === "solo", "solo room created");
+assert(c.room.status === "countdown", "solo starts with countdown");
+send(c, { type: "SUBMIT_GUESS", roomCode: c.code, playerId: c.id, guess: "Japan" });
+await waitFor(() => c.notices.length >= 1, "early guess notice");
+assert(c.notices.at(-1).kind === "info", "guess during countdown is ignored");
+await waitFor(() => c.room?.status === "playing", "solo game started", 6000);
+send(c, { type: "SUBMIT_GUESS", roomCode: c.code, playerId: c.id, guess: "Japan" });
+await waitFor(() => c.notices.length >= 2, "solo guess notice");
+assert(c.notices.at(-1).kind === "correct", "solo guess accepted");
+console.log("Solo room:", c.code, "| skor:", c.room.players[0].score);
+
 console.log("SMOKE TEST PASSED ✅");
 
 a.ws.close();
 b.ws.close();
+c.ws.close();
 process.exit(0);

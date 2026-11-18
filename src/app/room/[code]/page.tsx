@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useGame } from "@/context/GameContext";
 import { loadSession } from "@/lib/session";
+import { getSavedNickname, saveNickname } from "@/lib/nicknameCookie";
 import { AppBar } from "@/components/AppBar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -12,6 +13,7 @@ import { NoticeBanner } from "@/components/NoticeBanner";
 import { Room } from "@/components/Room";
 import { Game } from "@/components/Game";
 import { Result } from "@/components/Result";
+import { Countdown } from "@/components/Countdown";
 
 type GateMode = "checking" | "reconnecting" | "join";
 
@@ -47,7 +49,7 @@ export default function RoomPage() {
 
     // Pengunjung baru dari link undangan: langsung ke form nickname.
     setMode("join");
-    setNickname(session?.nickname ?? "");
+    setNickname(session?.nickname || getSavedNickname());
   }, [code, reconnect]);
 
   useEffect(() => {
@@ -58,11 +60,13 @@ export default function RoomPage() {
     event.preventDefault();
     if (!nickname.trim()) return;
     setJoinError(null);
+    saveNickname(nickname.trim());
     joinRoom(code, nickname.trim());
   }
 
   if (room && room.code === code) {
     if (room.status === "waiting") return <Room />;
+    if (room.status === "countdown") return <Countdown />;
     if (room.status === "playing") return <Game />;
     return <Result />;
   }

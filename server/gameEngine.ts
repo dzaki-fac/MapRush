@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { findCountryByGuess } from "../src/lib/countries";
 import {
+  COUNTDOWN_MS,
   GAME_DURATION_MS,
   PLAYER_COLORS,
 } from "../src/shared/constants";
@@ -25,6 +26,7 @@ export function createRoom(nickname: string): { room: RoomState; playerId: strin
   const playerId = randomUUID();
   const room: RoomState = {
     code: makeRoomCode(),
+    mode: "duel",
     ownerId: playerId,
     players: [
       {
@@ -41,6 +43,8 @@ export function createRoom(nickname: string): { room: RoomState; playerId: strin
     remainingMs: GAME_DURATION_MS,
     endsAt: null,
     durationMs: GAME_DURATION_MS,
+    countdownMs: COUNTDOWN_MS,
+    countdownEndsAt: null,
     result: null,
     createdAt: Date.now(),
   };
@@ -60,13 +64,31 @@ export function joinRoom(room: RoomState, nickname: string): Player {
   return player;
 }
 
-export function startGame(room: RoomState): void {
-  room.status = "playing";
+function prepareRound(room: RoomState): void {
   room.usedCountries = [];
   room.result = null;
-  for (const player of room.players) player.score = 0;
-  room.endsAt = Date.now() + room.durationMs;
   room.remainingMs = room.durationMs;
+  room.endsAt = null;
+  room.countdownEndsAt = null;
+  for (const player of room.players) player.score = 0;
+}
+
+/** Fase hitung mundur; server yang menentukan kapan game benar-benar dimulai. */
+export function startCountdown(room: RoomState): void {
+  prepareRound(room);
+  room.status = "countdown";
+  room.countdownMs = COUNTDOWN_MS;
+  room.countdownEndsAt = Date.now() + COUNTDOWN_MS;
+}
+
+export function startGame(room: RoomState): void {
+  prepareRound(room);
+  room.status = "playing";
+  room.endsAt = Date.now() + room.durationMs;
+}
+
+export function requiredPlayers(room: RoomState): number {
+  return room.mode === "solo" ? 1 : 2;
 }
 
 export function computeResult(room: RoomState): GameResult {
@@ -93,22 +115,21 @@ export function finishGame(room: RoomState): void {
   if (room.status === "finished") return;
   room.status = "finished";
   room.endsAt = null;
+  room.countdownEndsAt = null;
   room.remainingMs = 0;
   room.result = computeResult(room);
 }
 
 /** Reset state untuk rematch, lalu langsung mulai ronde baru jika memungkinkan. */
 export function rematch(room: RoomState): boolean {
-  const canStart = room.players.length >= 2;
+  const canStart =
+    room.players.filter((p) => p.connected).length >= requiredPlayers(room);
   if (canStart) {
-    startGame(room);
+    startCountdown(room);
   } else {
+    prepareRound(room);
     room.status = "waiting";
-    room.usedCountries = [];
-    room.result = null;
-    room.remainingMs = room.durationMs;
-    room.endsAt = null;
-    for (const player of room.players) player.score = 0;
+    room.countdownMs = COUNTDOWN_MS;
   }
   return canStart;
 }

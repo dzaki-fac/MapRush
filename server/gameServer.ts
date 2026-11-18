@@ -2,7 +2,7 @@ import { WebSocket } from "ws";
 import type { RawData } from "ws";
 import { InMemoryRoomStore } from "./gameStore";
 import * as engine from "./gameEngine";
-import { MAX_NICKNAME_LENGTH } from "../src/shared/constants";
+import { COUNTDOWN_MS, MAX_NICKNAME_LENGTH } from "../src/shared/constants";
 import type {
   ClientMessage,
   NoticeKind,
@@ -22,6 +22,7 @@ export class GameServer {
   private playerSockets = new Map<string, WebSocket>();
   private socketMeta = new Map<WebSocket, { roomCode: string; playerId: string }>();
   private timers = new Map<string, ReturnType<typeof setInterval>>();
+  private countdownTimers = new Map<string, ReturnType<typeof setInterval>>();
 
   private send(ws: WebSocket, message: ServerMessage) {
     if (ws.readyState !== WebSocket.OPEN) return;
@@ -101,18 +102,57 @@ export class GameServer {
     this.timers.set(room.code, timer);
   }
 
+  private stopCountdownTimer(roomCode: string) {
+    const timer = this.countdownTimers.get(roomCode);
+    if (timer) clearInterval(timer);
+    this.countdownTimers.delete(roomCode);
+  }
+
+  private startCountdownTimer(room: RoomState) {
+    this.stopCountdownTimer(room.code);
+    const timer = setInterval(() => {
+      const current = this.store.get(room.code);
+      if (!current || current.status !== "countdown") {
+        this.stopCountdownTimer(room.code);
+        return;
+      }
+
+      const remaining = Math.max(
+        0,
+        (current.countdownEndsAt ?? Date.now()) - Date.now(),
+      );
+      current.countdownMs = remaining;
+
+      if (remaining <= 0) {
+        this.stopCountdownTimer(current.code);
+        engine.startGame(current);
+        this.startTimer(current);
+      }
+      this.broadcastState(current);
+    }, 200);
+    this.countdownTimers.set(room.code, timer);
+  }
+
   private removePlayerFromRoom(room: RoomState, playerId: string) {
     const player = room.players.find((p) => p.id === playerId);
     if (player) player.connected = false;
 
-    if (room.status === "playing" && room.players.length >= 2) {
+    const connected = room.players.filter((p) => p.connected).length;
+    if (room.status === "playing" && connected >= engine.requiredPlayers(room)) {
       engine.finishGame(room);
       this.stopTimer(room.code);
+    }
+    if (room.status === "countdown" && connected < engine.requiredPlayers(room)) {
+      this.stopCountdownTimer(room.code);
+      room.status = "waiting";
+      room.countdownMs = COUNTDOWN_MS;
+      room.countdownEndsAt = null;
     }
     this.broadcastState(room);
 
     if (!room.players.some((p) => p.connected)) {
       this.stopTimer(room.code);
+      this.stopCountdownTimer(room.code);
       this.store.delete(room.code);
     }
   }
@@ -142,6 +182,28 @@ export class GameServer {
             playerId: created.playerId,
             room: created.room,
           });
+          break;
+        }
+
+        case "CREATE_SOLO": {
+          const nickname = this.cleanNickname(message.nickname);
+          if (!nickname) return this.sendError(ws, "Nickname wajib diisi");
+
+          let created = engine.createRoom(nickname);
+          while (this.store.get(created.room.code)) created = engine.createRoom(nickname);
+
+          created.room.mode = "solo";
+          engine.startCountdown(created.room);
+          this.store.set(created.room.code, created.room);
+          this.bindSocket(ws, created.room.code, created.playerId);
+          this.send(ws, {
+            type: "JOINED",
+            roomCode: created.room.code,
+            playerId: created.playerId,
+            room: created.room,
+          });
+          this.startCountdownTimer(created.room);
+          this.broadcastState(created.room);
           break;
         }
 
@@ -192,11 +254,16 @@ export class GameServer {
           if (room.ownerId !== message.playerId) {
             return this.sendError(ws, "Hanya host yang bisa memulai game");
           }
-          if (room.players.filter((p) => p.connected).length < 2) {
-            return this.sendError(ws, "Butuh 2 pemain untuk memulai");
+          if (
+            room.players.filter((p) => p.connected).length <
+            engine.requiredPlayers(room)
+          ) {
+            return this.sendError(ws, "Belum cukup pemain untuk memulai");
           }
-          engine.startGame(room);
-          this.startTimer(room);
+          this.stopTimer(room.code);
+          this.stopCountdownTimer(room.code);
+          engine.startCountdown(room);
+          this.startCountdownTimer(room);
           this.broadcastState(room);
           break;
         }
@@ -241,8 +308,9 @@ export class GameServer {
             return this.sendError(ws, "Hanya host yang bisa memulai rematch");
           }
           const started = engine.rematch(room);
-          if (started) this.startTimer(room);
-          else this.stopTimer(room.code);
+          this.stopTimer(room.code);
+          this.stopCountdownTimer(room.code);
+          if (started) this.startCountdownTimer(room);
           this.broadcastState(room);
           break;
         }

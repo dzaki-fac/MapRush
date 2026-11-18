@@ -1,6 +1,8 @@
 export type PlayerId = string;
 
-export type GameStatus = "waiting" | "playing" | "finished";
+export type GameMode = "duel" | "solo";
+
+export type GameStatus = "waiting" | "countdown" | "playing" | "finished";
 
 export interface Player {
   id: PlayerId;
@@ -33,6 +35,7 @@ export interface GameResult {
  */
 export interface RoomState {
   code: string;
+  mode: GameMode;
   ownerId: PlayerId;
   players: Player[];
   status: GameStatus;
@@ -40,6 +43,8 @@ export interface RoomState {
   remainingMs: number;
   endsAt: number | null;
   durationMs: number;
+  countdownMs: number;
+  countdownEndsAt: number | null;
   result: GameResult | null;
   createdAt: number;
 }
