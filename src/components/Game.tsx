@@ -77,7 +77,7 @@ export function Game() {
         aside={<span className="font-mono text-xs text-fg-faint">room {room.code}</span>}
       />
 
-      <div className="flex min-h-0 flex-1 flex-col py-4 sm:py-6">
+      <div className="flex min-h-0 flex-1 flex-col pt-3 pb-4 sm:pt-4">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-line pb-4 sm:gap-3">
           <ScoreCard player={me} isMe />
           <div className="text-center">
@@ -100,12 +100,16 @@ export function Game() {
           </div>
         </div>
 
-        {/* Slot tetap supaya peta tidak ikut bergeser saat notifikasi muncul/hilang. */}
-        <div className="mt-4 flex h-14 shrink-0 items-start">
-          {notice && <NoticeBanner notice={notice} />}
+        {/* Notifikasi melayang: tidak menyisakan ruang kosong di atas peta. */}
+        <div className="relative z-10 mt-3 h-0 shrink-0">
+          {notice && (
+            <div className="absolute inset-x-0 top-0">
+              <NoticeBanner notice={notice} />
+            </div>
+          )}
         </div>
 
-        <div className="mt-4 grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="mt-3 grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
           <Panel className="flex min-h-0 flex-col overflow-hidden">
             <div className="flex h-11 shrink-0 items-center justify-between border-b border-line px-4">
               <p className="font-mono text-[11px] text-fg-faint">Peta dunia · Equal Earth</p>
@@ -128,8 +132,8 @@ export function Game() {
                 )}
               </div>
             </div>
-            <div className="grid min-h-0 flex-1 place-items-center bg-ink-950/50 p-3">
-              <div className="flex h-full min-h-0 w-full items-center justify-center">
+            <div className="grid place-items-center bg-ink-950/50 p-2">
+              <div className="w-full">
                 <WorldMapCanvas
                   usedCountries={room.usedCountries}
                   players={room.players}
@@ -138,7 +142,7 @@ export function Game() {
             </div>
           </Panel>
 
-          <aside className="flex min-h-0 flex-col gap-4">
+          <aside className="flex flex-col gap-4">
             <Panel className="shrink-0 p-5">
               <form onSubmit={handleSubmit}>
                 <label className="field-label" htmlFor="guess">
@@ -166,14 +170,14 @@ export function Game() {
               </form>
             </Panel>
 
-            <Panel className="flex min-h-[220px] flex-1 flex-col p-5">
+            <Panel className="flex flex-col p-5">
               <div className="flex items-center justify-between pb-3">
                 <h2 className="text-sm font-medium">Negara terpakai</h2>
                 <span className="font-mono text-xs text-fg-faint tnum">
                   {room.usedCountries.length}
                 </span>
               </div>
-              <div className="min-h-0 flex-1 overflow-y-auto border-t border-line">
+              <div className="max-h-[380px] overflow-y-auto border-t border-line">
                 {room.usedCountries.length === 0 ? (
                   <p className="py-10 text-center text-xs text-fg-faint">
                     Belum ada negara yang disebut.

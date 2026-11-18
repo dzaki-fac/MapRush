@@ -27,10 +27,10 @@ export default function WorldMap({ usedCountries, players }: WorldMapProps) {
   return (
     <ComposableMap
       projection="geoEqualEarth"
-      projectionConfig={{ scale: 165, center: [0, 12] }}
+      projectionConfig={{ scale: 180, center: [0, 12] }}
       width={1000}
       height={520}
-      className="h-auto max-h-full w-full"
+      className="h-auto w-full"
     >
       <Graticule stroke="#2b353c" strokeWidth={0.25} />
       <Geographies geography={GEOGRAPHY_URL}>
