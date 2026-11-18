@@ -59,6 +59,8 @@ export interface HuntState {
   feedback: HuntFeedback[];
   lastWinnerId: PlayerId | null;
   round: number;
+  targetEndsAt: number | null;
+  targetRemainingMs: number;
 }
 
 export interface RushState {

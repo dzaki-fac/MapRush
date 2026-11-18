@@ -1,8 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { randomClickableCountry } from "../country-validator";
-import { HUNT_CORRECT_POINTS, HUNT_WRONG_POINTS } from "../../src/shared/constants";
-import type { RoomState } from "../../src/shared/types";
-import type { AnswerOutcome, GameModeHandler } from "./types";
+import {
+  HUNT_CORRECT_POINTS,
+  HUNT_TARGET_MS,
+  HUNT_WRONG_POINTS,
+} from "../../src/shared/constants";
+import type { RoomState, UsedCountry } from "../../src/shared/types";
+import type {
+  AnswerOutcome,
+  GameModeHandler,
+  TickResult,
+} from "./types";
 
 const ignored = (reason: string): AnswerOutcome => ({
   kind: "ignored",
@@ -11,21 +19,27 @@ const ignored = (reason: string): AnswerOutcome => ({
   changed: false,
 });
 
-function pickNext(room: RoomState): boolean {
+function pickNext(room: RoomState, now: number): boolean {
   if (!room.hunt) return false;
   const country = randomClickableCountry(new Set(room.hunt.usedTargets));
   if (!country) {
     room.hunt.target = null;
+    room.hunt.targetEndsAt = null;
+    room.hunt.targetRemainingMs = 0;
     return false;
   }
+  // Pool peta memakai kode numerik tanpa leading zero ("44", bukan "044").
+  const code = String(Number(country.ccn3));
   room.hunt.target = {
     questionId: randomUUID(),
-    ccn3: country.ccn3,
+    ccn3: code,
     name: country.name,
   };
-  room.hunt.usedTargets.push(country.ccn3);
+  room.hunt.usedTargets.push(code);
   room.hunt.round += 1;
   room.hunt.lastWinnerId = null;
+  room.hunt.targetEndsAt = now + HUNT_TARGET_MS;
+  room.hunt.targetRemainingMs = HUNT_TARGET_MS;
   return true;
 }
 
@@ -49,8 +63,30 @@ export const countryHunt: GameModeHandler = {
       feedback: [],
       lastWinnerId: null,
       round: 0,
+      targetEndsAt: null,
+      targetRemainingMs: HUNT_TARGET_MS,
     };
-    pickNext(room);
+    pickNext(room, Date.now());
+  },
+
+  onTick(room, now): TickResult {
+    const hunt = room.hunt;
+    if (!hunt || room.status !== "playing" || !hunt.targetEndsAt) {
+      return { changed: false };
+    }
+
+    const remaining = Math.max(0, hunt.targetEndsAt - now);
+    hunt.targetRemainingMs = remaining;
+    if (remaining > 0) return { changed: false };
+
+    const hasNext = pickNext(room, now);
+    return {
+      changed: true,
+      finish: !hasNext,
+      notice: hunt.target
+        ? { kind: "info", message: `Negara berikutnya: ${hunt.target.name}` }
+        : undefined,
+    };
   },
 
   submitClick(room, playerId, questionId, ccn3): AnswerOutcome {
@@ -80,7 +116,17 @@ export const countryHunt: GameModeHandler = {
     addFeedback(room, playerId, ccn3, "correct");
     room.hunt.lastWinnerId = playerId;
 
-    const hasNext = pickNext(room);
+    // Negara yang berhasil ditebak menjadi milik pemain secara permanen.
+    const claimed: UsedCountry = {
+      ccn3: target.ccn3,
+      name: target.name,
+      ownerId: playerId,
+      ownerNickname: player.nickname,
+      at: Date.now(),
+    };
+    room.usedCountries.push(claimed);
+
+    const hasNext = pickNext(room, Date.now());
     const hasRival = room.players.length > 1;
 
     return {

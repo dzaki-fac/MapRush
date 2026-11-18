@@ -9,6 +9,7 @@ import { MapFrame } from "@/components/games/MapFrame";
 import { ScoreList } from "@/components/games/ScoreList";
 import { GameFooter, NoticeOverlay, TimerLabel } from "@/components/games/GameExtras";
 import type { HuntFeedback } from "@/shared/types";
+import { HUNT_TARGET_MS } from "@/shared/constants";
 
 export function CountryHuntGame() {
   const { room, playerId, connection, notice, submitClick } = useGame();
@@ -32,6 +33,11 @@ export function CountryHuntGame() {
   const seconds = Math.ceil(room.remainingMs / 1000);
   const target = hunt?.target ?? null;
   const winner = room.players.find((p) => p.id === hunt?.lastWinnerId);
+  const targetSeconds = Math.max(0, Math.ceil((hunt?.targetRemainingMs ?? 0) / 1000));
+  const targetProgress = Math.max(
+    0,
+    Math.min(1, (hunt?.targetRemainingMs ?? 0) / HUNT_TARGET_MS),
+  );
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-4 sm:px-6 lg:h-dvh lg:min-h-0">
@@ -54,10 +60,23 @@ export function CountryHuntGame() {
                 >
                   {target?.name ?? "—"}
                 </p>
+                <div className="mt-2 h-0.5 w-full max-w-xs overflow-hidden rounded-full bg-line">
+                  <div
+                    className="h-full bg-accent transition-[width] duration-200 ease-out"
+                    style={{ width: `${targetProgress * 100}%` }}
+                  />
+                </div>
               </div>
               <div className="shrink-0 text-right">
                 <p className="font-mono text-[11px] text-fg-faint">
                   putaran {hunt?.round ?? 0}
+                </p>
+                <p
+                  className={`mt-1 font-mono text-sm tnum ${
+                    targetSeconds <= 2 ? "text-signal-bad" : "text-fg-muted"
+                  }`}
+                >
+                  {targetSeconds} dtk
                 </p>
                 {winner && (
                   <p key={`${winner.id}-${hunt?.round}`} className="mt-1 animate-enter text-xs text-signal-good">

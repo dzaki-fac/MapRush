@@ -38,7 +38,8 @@ Konsekuensinya: **tidak ada indikator giliran** di UI (sesuai permintaan, indika
 - **Countdown 3 detik** — setelah host menekan *Mulai game* (atau saat memulai solo), server mengirim status `countdown` sebelum `playing`. Jawaban yang diketik saat countdown diabaikan. Hitung mundurnya berasal dari server, jadi kedua pemain melihat angka yang sama.
 - **Single player** — tab **Solo** di lobby membuat room dengan `mode: "solo"` dan langsung masuk countdown. Aturan, validasi, dan timer sama seperti 1v1; hanya saja tidak ada lawan. Layar hasil menampilkan "Selesai" dan jumlah negara yang berhasil disebut.
 - **Nickname tersimpan** — nickname disimpan di cookie (`maprush.nickname`, 1 tahun, `SameSite=Lax`), jadi tidak perlu diketik ulang di lobby maupun saat membuka link undangan.
-- **Peta bisa di-zoom** — scroll/drag pada peta, atau tombol `+` / `−` / reset di pojok kanan bawah. Zoom 1×–8×, berlaku di semua mode (termasuk Country Hunt saat mengklik target).
+- **Peta bisa di-zoom** — scroll/drag pada peta, atau tombol `+` / `−` / reset di pojok kanan bawah. Zoom 1×–8×, berlaku di semua mode (termasuk Country Hunt saat mengklik target). Tampilan awal sudah zoom **2×** dan sedikit mengarah ke utara supaya negara tidak terlalu kecil; tombol reset kembali ke tampilan awal ini.
+- **Country Hunt 5 detik per target** — target berganti otomatis setelah 5 detik (timer di server). Negara yang berhasil diklik langsung menjadi milik pemain dan tetap berwarna pemain di peta, bukan hanya feedback hijau sementara.
 
 ---
 

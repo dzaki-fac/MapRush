@@ -30,5 +30,12 @@ export const COUNTDOWN_MS = 3_000;
 export const HUNT_CORRECT_POINTS = 5;
 export const HUNT_WRONG_POINTS = 1;
 
+/** Lama satu target Country Hunt sebelum berganti otomatis (ms). */
+export const HUNT_TARGET_MS = 5_000;
+
+/** Tampilan awal peta: zoom 2x dan sedikit mengarah ke utara. */
+export const MAP_DEFAULT_ZOOM = 2;
+export const MAP_DEFAULT_CENTER: readonly [number, number] = [0, 18];
+
 /** Batas panjang nickname. */
 export const MAX_NICKNAME_LENGTH = 16;

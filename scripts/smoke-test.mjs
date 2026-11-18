@@ -83,6 +83,8 @@ async function duel(gameType = "world-conquest") {
   });
   await waitFor(() => a.room.players[0].score === 5, "+5 diterima");
   assert.notEqual(a.room.hunt.target.questionId, target.questionId, "target berganti");
+  assert.equal(a.room.usedCountries.length, 1, "negara berhasil diklaim");
+  assert.equal(b.room.usedCountries[0].ccn3, target.ccn3);
   send(b, {
     type: "SUBMIT_CLICK",
     roomCode: b.code,

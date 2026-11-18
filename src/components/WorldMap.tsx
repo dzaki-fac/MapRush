@@ -10,6 +10,7 @@ import {
   ZoomableGroup,
 } from "react-simple-maps";
 import { CONTINENT_BY_CODE } from "@/data/continent-codes";
+import { MAP_DEFAULT_CENTER, MAP_DEFAULT_ZOOM } from "@/shared/constants";
 import type { Continent, HuntFeedback, Player, UsedCountry } from "@/shared/types";
 
 const GEOGRAPHY_URL = "/geographies/countries-110m.json";
@@ -40,8 +41,8 @@ export default function WorldMap({
   activeContinent = null,
   showZoomControls = true,
 }: WorldMapProps) {
-  const [zoom, setZoom] = useState(1);
-  const [center, setCenter] = useState<[number, number]>([0, 0]);
+  const [zoom, setZoom] = useState(MAP_DEFAULT_ZOOM);
+  const [center, setCenter] = useState<[number, number]>([...MAP_DEFAULT_CENTER]);
 
   const colorByCode = useMemo(() => {
     const colorByPlayer = new Map(players.map((p) => [p.id, p.color]));
@@ -169,8 +170,8 @@ export default function WorldMap({
           <button
             type="button"
             onClick={() => {
-              setZoom(1);
-              setCenter([0, 0]);
+              setZoom(MAP_DEFAULT_ZOOM);
+              setCenter([...MAP_DEFAULT_CENTER]);
             }}
             aria-label="Reset tampilan peta"
             title="Reset tampilan"

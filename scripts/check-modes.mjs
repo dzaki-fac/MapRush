@@ -63,7 +63,22 @@ function correctClick(room, mode, playerId) {
   const stale = mode.submitClick(room, p2, target.questionId, target.ccn3);
   assert.equal(stale.kind, "ignored", "jawaban untuk questionId lama harus diabaikan");
   assert.equal(room.players.find((p) => p.id === p2).score, 0);
-  console.log("country-hunt first-answer-wins OK");
+  assert.equal(room.usedCountries.length, 1, "target yang benar jadi milik pemain");
+  assert.equal(room.usedCountries[0].ownerId, p1);
+  console.log("country-hunt first-answer-wins & claim OK");
+}
+
+// --- Country Hunt: target berganti setelah 5 detik ---
+{
+  const { room, mode } = playingRoom("country-hunt");
+  const previous = room.hunt.target.questionId;
+  assert.equal(room.hunt.targetRemainingMs, 5000);
+  room.hunt.targetEndsAt = Date.now() - 1;
+  const tick = mode.onTick(room, Date.now());
+  assert.equal(tick.changed, true);
+  assert.notEqual(room.hunt.target.questionId, previous);
+  assert.equal(room.hunt.targetRemainingMs, 5000);
+  console.log("country-hunt 5s rotation OK");
 }
 
 // --- Country Hunt: target tidak diulang ---
