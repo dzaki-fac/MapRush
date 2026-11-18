@@ -39,7 +39,6 @@ export default function WorldMap({ usedCountries, players }: WorldMapProps) {
             const code = String(Number(geo.id));
             const ownerColor = colorByCode.get(code);
             const fill = ownerColor ?? DEFAULT_FILL;
-            const name = (geo.properties as { name?: string } | null)?.name ?? "Negara";
 
             return (
               <Geography
@@ -48,13 +47,12 @@ export default function WorldMap({ usedCountries, players }: WorldMapProps) {
                 fill={fill}
                 stroke="#10161a"
                 strokeWidth={0.5}
+                tabIndex={-1}
                 className={ownerColor ? "country country-owned" : "country country-free"}
                 style={{
                   transition: "fill 220ms cubic-bezier(0.22, 1, 0.36, 1)",
                 }}
-              >
-                <title>{name}</title>
-              </Geography>
+              />
             );
           })
         }

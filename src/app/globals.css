@@ -37,6 +37,10 @@ body {
 .country {
   cursor: default;
 }
+.country:focus,
+.country:focus-visible {
+  outline: none;
+}
 .country-free:hover {
   fill: #30414a;
 }
