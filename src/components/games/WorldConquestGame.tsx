@@ -21,8 +21,6 @@ export function WorldConquestGame() {
 
   if (!room) return null;
 
-  const me = room.players.find((p) => p.id === playerId);
-  const opponent = room.players.find((p) => p.id !== playerId);
   const seconds = Math.ceil(room.remainingMs / 1000);
 
   function handleSubmit(event: FormEvent) {
@@ -54,7 +52,7 @@ export function WorldConquestGame() {
 
           <aside className="flex flex-col gap-4">
             <Panel className="shrink-0 p-4">
-              <ScoreList me={me} opponent={opponent} />
+              <ScoreList players={room.players} playerId={playerId} />
             </Panel>
 
             <Panel className="shrink-0 p-5">

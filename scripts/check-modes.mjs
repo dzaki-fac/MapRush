@@ -133,10 +133,20 @@ function correctClick(room, mode, playerId) {
   assert.equal(result.winnerId, p1);
   assert.equal(result.draw, false);
 
+  const three = createRoom("A").room;
+  const second = joinRoom(three, "B");
+  const third = joinRoom(three, "C");
+  three.players[0].score = 4;
+  second.score = 9;
+  third.score = 2;
+  const threeResult = computeResult(three);
+  assert.equal(threeResult.winnerId, second.id);
+  assert.equal(threeResult.draw, false);
+
   const drawRoom = createRoom("A").room;
   joinRoom(drawRoom, "B");
   assert.equal(computeResult(drawRoom).draw, true);
-  console.log("finish & winner calculation OK");
+  console.log("finish & winner calculation OK (2 & 3 pemain)");
 }
 
 // --- Rematch memakai mode yang sama ---

@@ -166,12 +166,22 @@ export class GameServer {
     const player = room.players.find((p) => p.id === playerId);
     if (player) player.connected = false;
 
+    // Host keluar -> alihkan kepemimpinan ke pemain lain yang masih terhubung.
+    if (room.ownerId === playerId && room.status === "waiting") {
+      const successor = room.players.find((p) => p.connected);
+      if (successor) {
+        room.ownerId = successor.id;
+        for (const item of room.players) item.isHost = item.id === successor.id;
+      }
+    }
+
     const connected = room.players.filter((p) => p.connected).length;
-    if (room.status === "playing" && connected >= engine.requiredPlayers(room)) {
+    const required = engine.requiredPlayers(room);
+    if (room.status === "playing" && connected < required) {
       engine.finishGame(room);
       this.stopTimer(room.code);
     }
-    if (room.status === "countdown" && connected < engine.requiredPlayers(room)) {
+    if (room.status === "countdown" && connected < required) {
       this.stopCountdownTimer(room.code);
       room.status = "waiting";
       room.countdownMs = COUNTDOWN_MS;
@@ -209,6 +219,7 @@ export class GameServer {
 
           if (message.type === "CREATE_SOLO") {
             created.room.mode = "solo";
+            created.room.maxPlayers = 1;
             engine.startCountdown(created.room);
           }
 
@@ -233,7 +244,9 @@ export class GameServer {
           const room = this.store.get(code);
           if (!room) return this.sendError(ws, "Room tidak ditemukan");
           if (room.status !== "waiting") return this.sendError(ws, "Game sudah dimulai");
-          if (room.players.length >= 2) return this.sendError(ws, "Room sudah penuh");
+          if (room.players.length >= room.maxPlayers) {
+            return this.sendError(ws, "Room sudah penuh");
+          }
 
           const nickname = this.cleanNickname(message.nickname);
           if (!nickname) return this.sendError(ws, "Nickname wajib diisi");
@@ -281,6 +294,23 @@ export class GameServer {
           room.gameType = this.cleanGameType(message.gameType);
           room.durationMs = engine.durationForGameType(room.gameType);
           room.remainingMs = room.durationMs;
+          this.broadcastState(room);
+          break;
+        }
+
+        case "SET_MAX_PLAYERS": {
+          const room = this.store.get(message.roomCode);
+          if (!room) return this.sendError(ws, "Room tidak ditemukan");
+          if (room.ownerId !== message.playerId) {
+            return this.sendError(ws, "Hanya host yang bisa mengubah kapasitas");
+          }
+          if (room.status !== "waiting" || room.mode === "solo") {
+            return this.sendError(ws, "Kapasitas tidak bisa diubah sekarang");
+          }
+          room.maxPlayers = engine.clampMaxPlayers(
+            message.maxPlayers,
+            room.players.length,
+          );
           this.broadcastState(room);
           break;
         }

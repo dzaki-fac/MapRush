@@ -1,5 +1,18 @@
-/** Warna pemain. Dipakai oleh server (saat membuat player) dan client (pewarnaan peta). */
-export const PLAYER_COLORS = ["#22d3ee", "#fb923c"] as const;
+/** Warna pemain. Dipakai server saat membuat player dan client untuk mewarnai peta. */
+export const PLAYER_COLORS = [
+  "#22d3ee",
+  "#fb923c",
+  "#a78bfa",
+  "#4ade80",
+  "#f472b6",
+  "#facc15",
+  "#60a5fa",
+  "#fb7185",
+] as const;
+
+/** Jumlah pemain minimum dan maksimum per room. */
+export const MIN_PLAYERS = 2;
+export const MAX_PLAYERS = 8;
 
 /** Durasi default World Conquest & Country Hunt (ms). */
 export const GAME_DURATION_MS = 90_000;

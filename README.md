@@ -20,6 +20,8 @@ Tiga mode dapat dipilih di lobby sebelum room dibuat. Host juga bisa menggantiny
 | Country Hunt | Klik lokasi negara yang diminta sistem | +5 benar, -1 salah (min. 0) | 90 dtk |
 | Continent Rush | Ketik negara dari benua aktif | +1 / negara benar | 120 dtk, benua berganti tiap 20 dtk |
 
+Satu room bisa diisi **2–8 pemain**. Host mengatur kapasitas di ruang tunggu; game mulai setelah minimal 2 pemain bergabung. Tiap pemain memakai warna berbeda di peta, skor dihitung per pemain, dan pemenang ditentukan dari skor tertinggi (skor sama = seri). Host yang keluar otomatis digantikan pemain lain yang masih terhubung.
+
 Semua mode memakai **Mode Bebas (free-for-all)**: kedua pemain bisa mengetik jawaban kapan saja selama timer masih berjalan.
 
 **Alasan:**
@@ -36,6 +38,7 @@ Konsekuensinya: **tidak ada indikator giliran** di UI (sesuai permintaan, indika
 - **Countdown 3 detik** — setelah host menekan *Mulai game* (atau saat memulai solo), server mengirim status `countdown` sebelum `playing`. Jawaban yang diketik saat countdown diabaikan. Hitung mundurnya berasal dari server, jadi kedua pemain melihat angka yang sama.
 - **Single player** — tab **Solo** di lobby membuat room dengan `mode: "solo"` dan langsung masuk countdown. Aturan, validasi, dan timer sama seperti 1v1; hanya saja tidak ada lawan. Layar hasil menampilkan "Selesai" dan jumlah negara yang berhasil disebut.
 - **Nickname tersimpan** — nickname disimpan di cookie (`maprush.nickname`, 1 tahun, `SameSite=Lax`), jadi tidak perlu diketik ulang di lobby maupun saat membuka link undangan.
+- **Peta bisa di-zoom** — scroll/drag pada peta, atau tombol `+` / `−` / reset di pojok kanan bawah. Zoom 1×–8×, berlaku di semua mode (termasuk Country Hunt saat mengklik target).
 
 ---
 

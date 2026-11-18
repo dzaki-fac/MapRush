@@ -63,14 +63,15 @@ export function Lobby() {
       <div className="grid flex-1 gap-10 py-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)] lg:gap-16 lg:py-14">
         <section className="flex flex-col">
           <p className="font-mono text-xs text-accent">
-            1v1 · {selected.duration} detik
+            2–8 pemain · {selected.duration} detik
           </p>
           <h1 className="mt-4 max-w-xl text-[32px] font-medium leading-[1.15] tracking-[-0.02em] sm:text-[38px]">
             Sebut negara, rebut warnamu di peta
           </h1>
           <p className="mt-4 max-w-lg text-sm text-fg-muted">
             Tiga cara bermain dengan satu peta dunia yang sama. Pilih mode, undang
-            teman, lalu buktikan siapa yang paling cepat.
+            teman, lalu buktikan siapa yang paling cepat. Satu room bisa diisi hingga
+            8 pemain.
           </p>
 
           <MapRule className="my-8" />
@@ -78,7 +79,7 @@ export function Lobby() {
           <ol className="space-y-4">
             {[
               "Pilih mode lalu buat room atau main solo",
-              "Kedua pemain melihat pertanyaan dan timer yang sama",
+              "Semua pemain melihat pertanyaan dan timer yang sama",
               "Server yang menentukan skor dan pemenang",
             ].map((text, index) => (
               <li key={text} className="flex gap-4">

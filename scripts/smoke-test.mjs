@@ -119,5 +119,48 @@ async function duel(gameType = "world-conquest") {
   b.ws.close();
 }
 
+// --- Multiplayer lebih dari 2 pemain ---
+{
+  const a = client();
+  const b = client();
+  const c = client();
+  await Promise.all([
+    waitFor(() => a.ws.readyState === WebSocket.OPEN, "A open"),
+    waitFor(() => b.ws.readyState === WebSocket.OPEN, "B open"),
+    waitFor(() => c.ws.readyState === WebSocket.OPEN, "C open"),
+  ]);
+
+  send(a, { type: "CREATE_ROOM", nickname: "Host", gameType: "world-conquest" });
+  await waitFor(() => a.code, "room created");
+  send(a, {
+    type: "SET_MAX_PLAYERS",
+    roomCode: a.code,
+    playerId: a.id,
+    maxPlayers: 4,
+  });
+  send(b, { type: "JOIN_ROOM", roomCode: a.code, nickname: "P2" });
+  send(c, { type: "JOIN_ROOM", roomCode: a.code, nickname: "P3" });
+  await waitFor(() => a.room?.players.length === 3, "3 pemain bergabung");
+  assert.equal(a.room.maxPlayers, 4);
+  assert.equal(new Set(a.room.players.map((p) => p.color)).size, 3);
+
+  send(a, { type: "START_GAME", roomCode: a.code, playerId: a.id });
+  await waitFor(() => a.room?.status === "playing", "playing");
+  send(b, {
+    type: "SUBMIT_GUESS",
+    roomCode: b.code,
+    playerId: b.id,
+    guess: "Indonesia",
+  });
+  await waitFor(() => a.room?.usedCountries.length === 1, "state tersebar ke semua");
+  assert.equal(b.room.players.length, 3);
+  assert.equal(c.room.players.length, 3);
+  assert.equal(c.room.players.find((p) => p.id === b.id).score, 1);
+  console.log("3-player multiplayer smoke OK");
+  a.ws.close();
+  b.ws.close();
+  c.ws.close();
+}
+
 console.log("MULTIPLAYER SMOKE TEST PASSED ✅");
 process.exit(0);

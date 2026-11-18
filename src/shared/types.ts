@@ -78,6 +78,7 @@ export interface RoomState {
   code: string;
   mode: GameMode;
   gameType: GameType;
+  maxPlayers: number;
   ownerId: PlayerId;
   players: Player[];
   status: GameStatus;

@@ -38,6 +38,7 @@ interface GameContextValue {
   joinRoom: (roomCode: string, nickname: string) => void;
   reconnect: (roomCode: string, playerId: string) => void;
   setGameType: (gameType: GameType) => void;
+  setMaxPlayers: (maxPlayers: number) => void;
   startGame: () => void;
   submitGuess: (guess: string) => void;
   submitClick: (questionId: string, ccn3: string) => void;
@@ -247,6 +248,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
         roomCode: code,
         playerId: id,
         gameType,
+      })),
+    setMaxPlayers: (maxPlayers) =>
+      withRoom((code, id) => ({
+        type: "SET_MAX_PLAYERS",
+        roomCode: code,
+        playerId: id,
+        maxPlayers,
       })),
     startGame: () =>
       withRoom((code, id) => ({ type: "START_GAME", roomCode: code, playerId: id })),

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ArrowLeft, Copy, Check, Link2 } from "lucide-react";
 import { useGame } from "@/context/GameContext";
 import { GAME_MODES, modeInfo } from "@/lib/game-modes";
+import { MAX_PLAYERS, MIN_PLAYERS } from "@/shared/constants";
 import { AppBar } from "@/components/AppBar";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
@@ -12,7 +13,16 @@ import { MapRule } from "@/components/MapRule";
 import { copyText } from "@/lib/clipboard";
 
 export function Room() {
-  const { room, playerId, connection, startGame, setGameType, leaveRoom, notice } = useGame();
+  const {
+    room,
+    playerId,
+    connection,
+    startGame,
+    setGameType,
+    setMaxPlayers,
+    leaveRoom,
+    notice,
+  } = useGame();
   const [copied, setCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
 
@@ -20,9 +30,8 @@ export function Room() {
 
   const roomCode = room.code;
   const isHost = room.ownerId === playerId;
-  const opponent = room.players.find((p) => p.id !== playerId);
-  const maxPlayers = room.mode === "solo" ? 1 : 2;
-  const ready = room.players.length >= maxPlayers;
+  const maxPlayers = room.maxPlayers;
+  const ready = room.players.length >= MIN_PLAYERS;
   const seconds = Math.round(room.durationMs / 1000);
 
   async function handleCopy() {
@@ -158,6 +167,39 @@ export function Room() {
             )}
           </div>
 
+          {room.mode !== "solo" && (
+            <div className="mt-5">
+              <p className="field-label">Kapasitas room</p>
+              {isHost ? (
+                <div className="mt-2 flex gap-2">
+                  {Array.from(
+                    { length: MAX_PLAYERS - MIN_PLAYERS + 1 },
+                    (_, index) => MIN_PLAYERS + index,
+                  ).map((count) => (
+                    <button
+                      key={count}
+                      type="button"
+                      onClick={() => setMaxPlayers(count)}
+                      aria-pressed={count === maxPlayers}
+                      className={`h-9 w-9 rounded-control border font-mono text-xs transition-colors duration-150 ${
+                        count === maxPlayers
+                          ? "border-accent/60 bg-accent/5 text-fg"
+                          : "border-line text-fg-muted hover:border-ink-700 hover:text-fg"
+                      }`}
+                    >
+                      {count}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-fg">{maxPlayers} pemain</p>
+              )}
+              <p className="mt-2 text-[11px] text-fg-faint">
+                Game mulai setelah minimal {MIN_PLAYERS} pemain bergabung.
+              </p>
+            </div>
+          )}
+
           <MapRule className="my-6" />
 
           <p className="field-label">
@@ -187,10 +229,14 @@ export function Room() {
                 />
               </div>
             ))}
-            {!opponent && room.mode !== "solo" && (
+            {room.players.length < maxPlayers && room.mode !== "solo" && (
               <div className="flex h-12 items-center gap-3 text-fg-faint">
                 <span className="h-2.5 w-2.5 shrink-0 rounded-[2px] border border-line" />
-                <span className="flex-1 text-sm">Menunggu pemain kedua</span>
+                <span className="flex-1 text-sm">
+                  {ready
+                    ? "Bisa mulai — atau tunggu pemain lain"
+                    : `Menunggu ${MIN_PLAYERS - room.players.length} pemain lagi`}
+                </span>
               </div>
             )}
           </div>
@@ -208,7 +254,7 @@ export function Room() {
               )
             ) : (
               <Button size="lg" className="w-full" disabled>
-                Butuh satu pemain lagi
+                Butuh {MIN_PLAYERS - room.players.length} pemain lagi
               </Button>
             )}
           </div>

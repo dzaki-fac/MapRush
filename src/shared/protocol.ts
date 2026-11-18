@@ -1,5 +1,6 @@
 import type { GameType } from "./types";
 
+
 /** Pesan yang dikirim browser -> WebSocket server. */
 export type ClientMessage =
   | { type: "CREATE_ROOM"; nickname: string; gameType?: GameType }
@@ -7,6 +8,7 @@ export type ClientMessage =
   | { type: "JOIN_ROOM"; roomCode: string; nickname: string }
   | { type: "RECONNECT"; roomCode: string; playerId: string }
   | { type: "SET_GAME_TYPE"; roomCode: string; playerId: string; gameType: GameType }
+  | { type: "SET_MAX_PLAYERS"; roomCode: string; playerId: string; maxPlayers: number }
   | { type: "START_GAME"; roomCode: string; playerId: string }
   | { type: "SUBMIT_GUESS"; roomCode: string; playerId: string; guess: string }
   | {

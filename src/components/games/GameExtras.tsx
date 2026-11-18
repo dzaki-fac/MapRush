@@ -21,7 +21,7 @@ export function GameFooter({ room }: { room: RoomState }) {
     <footer className="flex h-10 shrink-0 items-center justify-between border-t border-line text-[11px] text-fg-faint">
       <span>MapRush</span>
       <span>
-        room {room.code} · {room.mode === "solo" ? "solo" : "1v1"} ·{" "}
+        room {room.code} · {room.players.length} pemain ·{" "}
         {room.durationMs / 1000} detik
       </span>
     </footer>

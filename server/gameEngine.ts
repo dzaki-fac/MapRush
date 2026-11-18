@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import {
   COUNTDOWN_MS,
   GAME_DURATION_MS,
+  MAX_PLAYERS,
+  MIN_PLAYERS,
   PLAYER_COLORS,
   RUSH_DURATION_MS,
 } from "../src/shared/constants";
@@ -35,6 +37,7 @@ export function createRoom(
     code: makeRoomCode(),
     mode: "duel",
     gameType,
+    maxPlayers: MIN_PLAYERS,
     ownerId: playerId,
     players: [
       {
@@ -65,13 +68,22 @@ export function joinRoom(room: RoomState, nickname: string): Player {
   const player: Player = {
     id: randomUUID(),
     nickname,
-    color: PLAYER_COLORS[1],
+    color: PLAYER_COLORS[room.players.length % PLAYER_COLORS.length],
     connected: true,
     score: 0,
     isHost: false,
   };
   room.players.push(player);
   return player;
+}
+
+export function clampMaxPlayers(value: unknown, current: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return MIN_PLAYERS;
+  return Math.min(
+    MAX_PLAYERS,
+    Math.max(MIN_PLAYERS, current, Math.floor(parsed)),
+  );
 }
 
 function prepareRound(room: RoomState): void {
@@ -100,24 +112,31 @@ export function startGame(room: RoomState): void {
 }
 
 export function requiredPlayers(room: RoomState): number {
-  return room.mode === "solo" ? 1 : 2;
+  return room.mode === "solo" ? 1 : MIN_PLAYERS;
 }
 
 export function computeResult(room: RoomState): GameResult {
   const scores: Record<string, number> = {};
   for (const player of room.players) scores[player.id] = player.score;
 
-  const [p1, p2] = room.players;
-  const s1 = p1?.score ?? 0;
-  const s2 = p2?.score ?? 0;
+  let topScore = -1;
+  let leaders: Player[] = [];
+  for (const player of room.players) {
+    if (player.score > topScore) {
+      topScore = player.score;
+      leaders = [player];
+    } else if (player.score === topScore) {
+      leaders.push(player);
+    }
+  }
 
-  if (s1 === s2) {
+  // Skor sama (termasuk semua 0) atau beberapa pemain seri di puncak => draw.
+  if (leaders.length !== 1) {
     return { winnerId: null, winnerNickname: null, draw: true, scores };
   }
-  const winner = s1 > s2 ? p1 : p2;
   return {
-    winnerId: winner.id,
-    winnerNickname: winner.nickname,
+    winnerId: leaders[0].id,
+    winnerNickname: leaders[0].nickname,
     draw: false,
     scores,
   };
