@@ -9,27 +9,15 @@ import { NoticeBanner } from "@/components/NoticeBanner";
 import { WorldMapCanvas } from "@/components/WorldMapCanvas";
 import type { Player } from "@/shared/types";
 
-function ScoreCard({
-  player,
-  isMe,
-  align = "left",
-}: {
-  player?: Player;
-  isMe?: boolean;
-  align?: "left" | "right";
-}) {
+function ScoreCard({ player, isMe }: { player?: Player; isMe?: boolean }) {
   if (!player) return null;
   return (
-    <div
-      className={`flex min-w-0 items-center gap-3 ${
-        align === "right" ? "flex-row-reverse text-right" : ""
-      }`}
-    >
+    <div className="flex min-w-0 items-center gap-3">
       <span
         className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
         style={{ backgroundColor: player.color }}
       />
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="truncate text-xs text-fg-muted">
           {player.nickname}
           {isMe && <span className="text-fg-faint"> · kamu</span>}
@@ -38,9 +26,7 @@ function ScoreCard({
           {isMe ? "pemain kamu" : "lawan"}
         </p>
       </div>
-      <span className="ml-1 font-mono text-[24px] leading-none tnum sm:text-[28px]">
-        {player.score}
-      </span>
+      <span className="font-mono text-[24px] leading-none tnum">{player.score}</span>
     </div>
   );
 }
@@ -60,6 +46,9 @@ export function Game() {
   const opponent = room.players.find((p) => p.id !== playerId);
   const seconds = Math.ceil(room.remainingMs / 1000);
   const urgent = seconds <= 15;
+  const timeLabel = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(
+    seconds % 60,
+  ).padStart(2, "0")}`;
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -78,28 +67,6 @@ export function Game() {
       />
 
       <div className="flex min-h-0 flex-1 flex-col pt-3 pb-4 sm:pt-4">
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-line pb-4 sm:gap-3">
-          <ScoreCard player={me} isMe />
-          <div className="text-center">
-            <p className="font-mono text-[11px] text-fg-faint">sisa waktu</p>
-            <p
-              className={`mt-0.5 font-mono text-[26px] leading-none tnum sm:text-[30px] ${
-                urgent ? "text-signal-bad" : "text-fg"
-              }`}
-            >
-              {String(Math.floor(seconds / 60)).padStart(2, "0")}:
-              {String(seconds % 60).padStart(2, "0")}
-            </p>
-          </div>
-          <div className="justify-self-end">
-            {opponent ? (
-              <ScoreCard player={opponent} align="right" />
-            ) : (
-              <span className="font-mono text-[11px] text-fg-faint">mode solo</span>
-            )}
-          </div>
-        </div>
-
         {/* Notifikasi melayang: tidak menyisakan ruang kosong di atas peta. */}
         <div className="relative z-10 mt-3 h-0 shrink-0">
           {notice && (
@@ -111,25 +78,36 @@ export function Game() {
 
         <div className="mt-3 grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
           <Panel className="flex min-h-0 flex-col overflow-hidden">
-            <div className="flex h-11 shrink-0 items-center justify-between border-b border-line px-4">
+            <div className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-line px-4">
               <p className="font-mono text-[11px] text-fg-faint">Peta dunia · Equal Earth</p>
-              <div className="flex gap-4 text-[11px] text-fg-muted">
-                <span className="flex items-center gap-2">
-                  <span
-                    className="h-2 w-2 rounded-[2px]"
-                    style={{ backgroundColor: me?.color }}
-                  />
-                  Kamu
-                </span>
-                {opponent && (
+              <div className="flex items-center gap-4">
+                <div className="flex gap-4 text-[11px] text-fg-muted">
                   <span className="flex items-center gap-2">
                     <span
                       className="h-2 w-2 rounded-[2px]"
-                      style={{ backgroundColor: opponent.color }}
+                      style={{ backgroundColor: me?.color }}
                     />
-                    Lawan
+                    Kamu
                   </span>
-                )}
+                  {opponent && (
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="h-2 w-2 rounded-[2px]"
+                        style={{ backgroundColor: opponent.color }}
+                      />
+                      Lawan
+                    </span>
+                  )}
+                </div>
+                <span className="h-4 w-px bg-line" aria-hidden="true" />
+                <span
+                  className={`font-mono text-[15px] leading-none tnum ${
+                    urgent ? "text-signal-bad" : "text-fg"
+                  }`}
+                  title="Sisa waktu"
+                >
+                  {timeLabel}
+                </span>
               </div>
             </div>
             <div className="grid place-items-center bg-ink-950/50 p-2">
@@ -143,6 +121,20 @@ export function Game() {
           </Panel>
 
           <aside className="flex flex-col gap-4">
+            <Panel className="shrink-0 p-4">
+              <div className="space-y-3">
+                <ScoreCard player={me} isMe />
+                {opponent ? (
+                  <ScoreCard player={opponent} />
+                ) : (
+                  <div className="flex items-center justify-between border-t border-line pt-3">
+                    <span className="text-xs text-fg-muted">Mode</span>
+                    <span className="font-mono text-[11px] text-fg-faint">solo</span>
+                  </div>
+                )}
+              </div>
+            </Panel>
+
             <Panel className="shrink-0 p-5">
               <form onSubmit={handleSubmit}>
                 <label className="field-label" htmlFor="guess">
@@ -209,6 +201,14 @@ export function Game() {
           </aside>
         </div>
       </div>
+
+      <footer className="flex h-10 shrink-0 items-center justify-between border-t border-line text-[11px] text-fg-faint">
+        <span>MapRush</span>
+        <span>
+          room {room.code} · {room.mode === "solo" ? "solo" : "1v1"} ·{" "}
+          {room.durationMs / 1000} detik
+        </span>
+      </footer>
     </main>
   );
 }
